@@ -5,7 +5,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { clearAuthTokens, getAccessToken, getRefreshToken, saveAuthTokens } from '@/services/secureStorage';
 
 // Overridden per environment (dev/staging/prod) via EXPO_PUBLIC_API_URL.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
