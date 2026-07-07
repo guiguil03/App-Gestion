@@ -12,6 +12,11 @@ export const apiClient = axios.create({
   timeout: 10_000,
 });
 
+/** Résout un chemin relatif renvoyé par le backend (ex. photo élève `/uploads/...`) en URL absolue. */
+export function resolveApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 apiClient.interceptors.request.use(async (config) => {
   const token = await getAccessToken();
   if (token) {
