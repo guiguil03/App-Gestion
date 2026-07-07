@@ -1,45 +1,71 @@
-import { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useDatabase } from '@nozbe/watermelondb/react';
 import { Q } from '@nozbe/watermelondb';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
+import { useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
+import type { Checkpoint } from '@/db/models/AttendanceRecord';
 import { parseCardQrCode } from '@/services/qrVerify';
 
-type ScanFeedback = { studentId: string; status: 'ok' | 'revoked' | 'invalide' } | null;
+// Le même QR peut rester dans le champ de la caméra pendant plusieurs frames :
+// on ignore les scans répétés de la même carte pendant ce délai.
+const RESCAN_COOLDOWN_MS = 4000;
 
 export default function ScanScreen() {
-  const database = useDatabase();
+  const database = useOptionalDatabase();
+  const recordAttendance = useRecordAttendance();
   const [permission, requestPermission] = useCameraPermissions();
-  const [feedback, setFeedback] = useState<ScanFeedback>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [checkpoint, setCheckpoint] = useState<Checkpoint>('portail');
+  const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
+  const lastScan = useRef<{ cardId: string; at: number } | null>(null);
+
+  if (!database) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={styles.message}>
+          Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go.
+          Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran.
+        </ThemedText>
+      </ThemedView>
+    );
+  }
 
   async function handleScan({ data }: { data: string }) {
-    if (isProcessing) return;
-    setIsProcessing(true);
+    if (!database) return; // ne devrait pas arriver : cf. le early-return ci-dessus
 
     const parsed = parseCardQrCode(data);
     if (!parsed) {
-      setFeedback({ studentId: '', status: 'invalide' });
-      setIsProcessing(false);
+      setFeedback({ status: 'invalide' });
       return;
     }
+
+    const { cardId, studentId } = parsed.payload;
+    const now = Date.now();
+    if (lastScan.current?.cardId === cardId && now - lastScan.current.at < RESCAN_COOLDOWN_MS) {
+      return;
+    }
+    lastScan.current = { cardId, at: now };
 
     // La vérification de signature Ed25519 (offline, via la clé publique de
     // l'école) est branchée dans qrVerify.verifyCardSignature — omise ici en
     // attendant la distribution de la clé publique depuis le backend.
-    const revoked = await database
-      .get('revoked_cards')
-      .query(Q.where('card_id', parsed.payload.cardId))
-      .fetchCount();
+    const isRevoked = (await database.get('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
 
-    setFeedback({
-      studentId: parsed.payload.studentId,
-      status: revoked > 0 ? 'revoked' : 'ok',
-    });
-    setIsProcessing(false);
+    if (isRevoked) {
+      setFeedback({ status: 'revoked' });
+      return;
+    }
+
+    try {
+      const record = await recordAttendance(studentId, checkpoint);
+      setFeedback({ status: 'ok', isLate: record.isLate });
+    } catch {
+      setFeedback({ status: 'erreur' });
+    }
   }
 
   if (!permission) {
@@ -64,15 +90,22 @@ export default function ScanScreen() {
       <CameraView
         style={styles.camera}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={isProcessing ? undefined : handleScan}
+        onBarcodeScanned={handleScan}
       />
-      {feedback ? (
-        <ThemedText type="subtitle" style={styles.feedback}>
-          {feedback.status === 'ok' && 'Pointage enregistré ✓'}
-          {feedback.status === 'revoked' && 'Carte révoquée — refuser'}
-          {feedback.status === 'invalide' && 'QR code illisible'}
-        </ThemedText>
-      ) : null}
+
+      <ThemedView type="backgroundElement" style={styles.checkpointSwitch}>
+        {(['portail', 'classe'] as const).map((option) => (
+          <Pressable
+            key={option}
+            style={[styles.checkpointOption, checkpoint === option && styles.checkpointOptionActive]}
+            onPress={() => setCheckpoint(option)}
+          >
+            <ThemedText type="smallBold">{option === 'portail' ? 'Portail' : 'Salle de classe'}</ThemedText>
+          </Pressable>
+        ))}
+      </ThemedView>
+
+      <ScanFeedbackBanner feedback={feedback} />
     </ThemedView>
   );
 }
@@ -88,11 +121,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: 24,
   },
-  feedback: {
+  checkpointSwitch: {
     position: 'absolute',
-    bottom: 40,
+    top: 48,
     left: 24,
     right: 24,
-    textAlign: 'center',
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  checkpointOption: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  checkpointOptionActive: {
+    backgroundColor: '#208AEF',
   },
 });

@@ -9,6 +9,7 @@
     "@react-native-community/netinfo": "^11.4.1",
     "@tanstack/react-query": "^5.62.0",
     "axios": "^1.7.9",
+    "buffer": "^6.0.3",
     "expo": "~57.0.2",
     "expo-background-task": "~57.0.0",
     "expo-camera": "~57.0.0",
