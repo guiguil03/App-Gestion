@@ -1,5 +1,4 @@
 // apps/mobile/src/app/(teacher)/classe.tsx
-import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
-import { useAssignedClasses } from '@/features/classes/hooks/useAssignedClasses';
+import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassRoster, type RosterStatus } from '@/features/classes/hooks/useClassRoster';
 import type { ThemeColor } from '@/theme/theme';
 
@@ -22,19 +21,7 @@ const STATUS_CONFIG: Record<RosterStatus, { label: string; colorToken: ThemeColo
 export default function ClasseScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
-  const { classes, isLoading: classesLoading } = useAssignedClasses();
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (classes.length === 0) {
-      if (selectedClassId !== null) setSelectedClassId(null);
-      return;
-    }
-    const stillAssigned = classes.some((schoolClass) => schoolClass.id === selectedClassId);
-    if (!stillAssigned) {
-      setSelectedClassId(classes[0].id);
-    }
-  }, [classes, selectedClassId]);
+  const { classes, classesLoading, selectedClassId, setSelectedClassId } = useSelectedClass();
 
   const roster = useClassRoster(selectedClassId);
 
@@ -82,7 +69,7 @@ export default function ClasseScreen() {
             { backgroundColor: theme.primary },
             pressed && styles.sessionButtonPressed,
           ]}
-          onPress={() => router.push({ pathname: '/(teacher)/session', params: { classId: selectedClassId } })}
+          onPress={() => router.push('/(teacher)/session')}
         >
           <Ionicons name="qr-code-outline" size={18} color="#ffffff" />
           <ThemedText style={styles.sessionButtonLabel}>Créer une session</ThemedText>

@@ -1,13 +1,14 @@
 // apps/mobile/src/app/(teacher)/session.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import AttendanceSession from '@/db/models/AttendanceSession';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 import { signSessionPayload } from '@/services/sessionSigning';
@@ -19,9 +20,10 @@ const SESSION_DURATION_MS = 15 * 60 * 1000;
 export default function SessionScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
-  const { classId } = useLocalSearchParams<{ classId: string }>();
+  const { selectedClassId: classId } = useSelectedClass();
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState(SESSION_DURATION_MS);
   const closingRef = useRef(false);
 
@@ -30,32 +32,42 @@ export default function SessionScreen() {
 
     async function openSession() {
       if (!database || !classId) return;
-      const token = await getDecodedAccessToken();
-      if (!token?.schoolId) return;
 
-      const openedAt = Date.now();
-      const expiresAt = openedAt + SESSION_DURATION_MS;
+      try {
+        const token = await getDecodedAccessToken();
+        if (!token?.schoolId) {
+          if (!isCancelled) setError('Session de connexion invalide — reconnecte-toi.');
+          return;
+        }
 
-      const record = await database.write(() =>
-        database.get<AttendanceSession>('attendance_sessions').create((s) => {
-          s.schoolClassId = classId;
-          s.teacherId = token.userId;
-          s.openedAt = new Date(openedAt);
-          s.expiresAt = new Date(expiresAt);
-        }),
-      );
-      if (isCancelled) return;
-      setSession(record);
+        const openedAt = Date.now();
+        const expiresAt = openedAt + SESSION_DURATION_MS;
 
-      const { qrCode: signed } = await signSessionPayload({
-        sessionId: record.id,
-        schoolId: token.schoolId,
-        schoolClassId: classId,
-        teacherId: token.userId,
-        openedAt,
-        expiresAt,
-      });
-      if (!isCancelled) setQrCode(signed);
+        const record = await database.write(() =>
+          database.get<AttendanceSession>('attendance_sessions').create((s) => {
+            s.schoolClassId = classId;
+            s.teacherId = token.userId;
+            s.openedAt = new Date(openedAt);
+            s.expiresAt = new Date(expiresAt);
+          }),
+        );
+        if (isCancelled) return;
+        setSession(record);
+
+        const { qrCode: signed } = await signSessionPayload({
+          sessionId: record.id,
+          schoolId: token.schoolId,
+          schoolClassId: classId,
+          teacherId: token.userId,
+          openedAt,
+          expiresAt,
+        });
+        if (!isCancelled) setQrCode(signed);
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Erreur inconnue lors de la création de la session.');
+        }
+      }
     }
 
     openSession();
@@ -104,6 +116,17 @@ export default function SessionScreen() {
     return (
       <ThemedView style={styles.container}>
         <ThemedText style={styles.message}>Aucune classe sélectionnée.</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (error) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={[styles.message, { color: theme.danger }]}>{error}</ThemedText>
+        <ThemedText type="linkPrimary" onPress={() => router.back()}>
+          Retour
+        </ThemedText>
       </ThemedView>
     );
   }

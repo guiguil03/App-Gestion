@@ -88,7 +88,7 @@ ensuite).
 cd apps/mobile
 npm install
 # ajuster EXPO_PUBLIC_API_URL dans .env pour pointer vers le backend
-npx expo run:android   # ou run:ios — un dev client est nécessaire
+npx expo start ou npx expo run:android   # ou run:ios — un dev client est nécessaire
 ```
 
 L'app détecte l'absence de base WatermelonDB (ex. Expo Go) et affiche un
