@@ -23,6 +23,9 @@ export default class AttendanceRecord extends Model {
   @date('recorded_at') recordedAt: Date;
   @field('is_late') isLate: boolean;
   @date('synced_at') syncedAt?: Date;
+  // Non-null uniquement pour un pointage auto-scanné par l'élève via un QR
+  // de session — null pour un scan de carte classique.
+  @text('session_id') sessionId?: string;
 
   @relation('students', 'student_id') student: Relation<Student>;
 }

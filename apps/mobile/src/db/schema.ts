@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // backend (the sync protocol matches records by `id` in both directions),
 // so no separate `server_id` column is needed anywhere in this schema.
 export const schema = appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: 'schools',
@@ -70,6 +70,25 @@ export const schema = appSchema({
         { name: 'recorded_at', type: 'number' },
         { name: 'is_late', type: 'boolean' },
         { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'session_id', type: 'string', isOptional: true, isIndexed: true },
+      ],
+    }),
+    tableSchema({
+      name: 'attendance_sessions',
+      columns: [
+        { name: 'school_class_id', type: 'string', isIndexed: true },
+        { name: 'teacher_id', type: 'string', isIndexed: true },
+        { name: 'opened_at', type: 'number' },
+        { name: 'expires_at', type: 'number' },
+        { name: 'closed_at', type: 'number', isOptional: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: 'teacher_signing_keys',
+      columns: [
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'public_key', type: 'string' }, // hex Ed25519
       ],
     }),
     tableSchema({
