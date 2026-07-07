@@ -1,4 +1,4 @@
-import { addColumns, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
+import { addColumns, createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
 
 export const migrations = schemaMigrations({
   migrations: [
@@ -8,6 +8,15 @@ export const migrations = schemaMigrations({
         addColumns({
           table: 'schools',
           columns: [{ name: 'card_signing_public_key', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 3,
+      steps: [
+        createTable({
+          name: 'assigned_classes',
+          columns: [{ name: 'school_class_id', type: 'string', isIndexed: true }],
         }),
       ],
     },

@@ -27,17 +27,23 @@ export class SyncService {
     private readonly attendance: AttendanceService,
   ) {}
 
-  async pull(schoolId: string, lastPulledAt: number): Promise<PullResult> {
+  async pull(schoolId: string, userId: string, lastPulledAt: number): Promise<PullResult> {
     const since = new Date(lastPulledAt);
     const timestamp = Date.now();
 
-    const [school, classes, students, revokedCards] = await Promise.all([
+    const [school, classes, students, revokedCards, currentUser] = await Promise.all([
       this.prisma.school.findUnique({ where: { id: schoolId } }),
       this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
       this.prisma.student.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
       this.prisma.studentCard.findMany({
         where: { revoked: true, student: { schoolId }, updatedAt: { gt: since } },
         select: { id: true },
+      }),
+      // Pas de filtrage par `since` : l'ensemble des classes assignées est petit,
+      // on renvoie toujours la liste complète plutôt qu'un delta.
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { assignedClasses: { where: { schoolId } } },
       }),
     ]);
 
@@ -48,6 +54,7 @@ export class SyncService {
         school_classes: bucket(classes.map(toSchoolClassRow)),
         students: bucket(students.map(toStudentRow)),
         revoked_cards: bucket(revokedCards.map((c) => ({ id: c.id, card_id: c.id }))),
+        assigned_classes: bucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow)),
       },
     };
   }
@@ -84,6 +91,13 @@ function toSchoolClassRow(schoolClass: { id: string; schoolId: string; name: str
     school_id: schoolClass.schoolId,
     name: schoolClass.name,
     promotion: schoolClass.promotion,
+  };
+}
+
+function toAssignedClassRow(schoolClass: { id: string }) {
+  return {
+    id: schoolClass.id,
+    school_class_id: schoolClass.id,
   };
 }
 

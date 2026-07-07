@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Q } from '@nozbe/watermelondb';
 
@@ -112,17 +113,25 @@ export default function ScanScreen() {
         onBarcodeScanned={handleScan}
       />
 
-      <ThemedView type="backgroundElement" style={styles.checkpointSwitch}>
-        {(['portail', 'classe'] as const).map((option) => (
-          <Pressable
-            key={option}
-            style={[styles.checkpointOption, checkpoint === option && styles.checkpointOptionActive]}
-            onPress={() => setCheckpoint(option)}
-          >
-            <ThemedText type="smallBold">{option === 'portail' ? 'Portail' : 'Salle de classe'}</ThemedText>
-          </Pressable>
-        ))}
-      </ThemedView>
+      <View style={styles.topBar}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" onPress={() => router.back()}>
+          <ThemedView type="backgroundElement" style={styles.backButton}>
+            <ThemedText type="smallBold">← Retour</ThemedText>
+          </ThemedView>
+        </Pressable>
+
+        <ThemedView type="backgroundElement" style={styles.checkpointSwitch}>
+          {(['portail', 'classe'] as const).map((option) => (
+            <Pressable
+              key={option}
+              style={[styles.checkpointOption, checkpoint === option && styles.checkpointOptionActive]}
+              onPress={() => setCheckpoint(option)}
+            >
+              <ThemedText type="smallBold">{option === 'portail' ? 'Portail' : 'Salle de classe'}</ThemedText>
+            </Pressable>
+          ))}
+        </ThemedView>
+      </View>
 
       <SyncStatusBadge />
       <ScanFeedbackBanner feedback={feedback} />
@@ -141,11 +150,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: 24,
   },
-  checkpointSwitch: {
+  topBar: {
     position: 'absolute',
     top: 48,
     left: 24,
     right: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  checkpointSwitch: {
+    flex: 1,
     flexDirection: 'row',
     borderRadius: 8,
     overflow: 'hidden',

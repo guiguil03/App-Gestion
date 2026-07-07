@@ -27,7 +27,13 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('changeme123', 10);
   await prisma.user.create({
-    data: { username: 'surveillant1', passwordHash, role: 'SURVEILLANT', schoolId: school.id },
+    data: {
+      username: 'surveillant1',
+      passwordHash,
+      role: 'SURVEILLANT',
+      schoolId: school.id,
+      assignedClasses: { connect: [{ id: schoolClass.id }] },
+    },
   });
   await prisma.user.create({
     data: { username: 'direction1', passwordHash, role: 'DIRECTION', schoolId: school.id },

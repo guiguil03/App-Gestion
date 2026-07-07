@@ -1,8 +1,10 @@
 import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 
+import AssignedClass from '@/db/models/AssignedClass';
 import AttendanceRecord from '@/db/models/AttendanceRecord';
 import School from '@/db/models/School';
+import SchoolClass from '@/db/models/SchoolClass';
 import Student from '@/db/models/Student';
 import { migrations } from '@/db/migrations';
 import { schema } from '@/db/schema';
@@ -15,7 +17,7 @@ import { schema } from '@/db/schema';
 function createDatabase(): Database | null {
   try {
     const adapter = new SQLiteAdapter({ schema, migrations, jsi: true });
-    return new Database({ adapter, modelClasses: [Student, AttendanceRecord, School] });
+    return new Database({ adapter, modelClasses: [Student, AttendanceRecord, School, SchoolClass, AssignedClass] });
   } catch {
     return null;
   }
