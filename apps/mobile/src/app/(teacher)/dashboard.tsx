@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { ChipSelector } from '@/components/chip-selector';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
@@ -72,25 +73,11 @@ export default function TeacherDashboardScreen() {
       </View>
 
       {classes.length > 1 && (
-        <ThemedView type="backgroundElement" style={styles.classSwitch}>
-          {classes.map((schoolClass) => (
-            <Pressable
-              key={schoolClass.id}
-              style={[
-                styles.classOption,
-                selectedClassId === schoolClass.id && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setSelectedClassId(schoolClass.id)}
-            >
-              <ThemedText
-                type="smallBold"
-                style={selectedClassId === schoolClass.id ? styles.classOptionLabelActive : undefined}
-              >
-                {schoolClass.name}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </ThemedView>
+        <ChipSelector
+          items={classes.map((schoolClass) => ({ id: schoolClass.id, label: schoolClass.name }))}
+          selectedId={selectedClassId}
+          onSelect={setSelectedClassId}
+        />
       )}
 
       <View style={styles.summaryRow}>
@@ -200,22 +187,6 @@ const styles = StyleSheet.create({
   message: {
     textAlign: 'center',
     margin: 24,
-  },
-  classSwitch: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    overflow: 'hidden',
-    padding: 4,
-    gap: 4,
-  },
-  classOption: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  classOptionLabelActive: {
-    color: '#ffffff',
   },
   summaryRow: {
     flexDirection: 'row',

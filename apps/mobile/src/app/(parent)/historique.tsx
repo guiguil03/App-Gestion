@@ -1,7 +1,8 @@
 // apps/mobile/src/app/(parent)/historique.tsx
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
+import { ChipSelector } from '@/components/chip-selector';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
@@ -53,22 +54,11 @@ export default function ParentHistoriqueScreen() {
       </ThemedText>
 
       {children.length > 1 && (
-        <ThemedView type="backgroundElement" style={styles.childSwitch}>
-          {children.map((child) => (
-            <Pressable
-              key={child.id}
-              style={[styles.childOption, selectedChildId === child.id && { backgroundColor: theme.primary }]}
-              onPress={() => setSelectedChildId(child.id)}
-            >
-              <ThemedText
-                type="smallBold"
-                style={selectedChildId === child.id ? styles.childOptionLabelActive : undefined}
-              >
-                {child.fullName}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </ThemedView>
+        <ChipSelector
+          items={children.map((child) => ({ id: child.id, label: child.fullName }))}
+          selectedId={selectedChildId}
+          onSelect={setSelectedChildId}
+        />
       )}
 
       <FlatList
@@ -114,22 +104,6 @@ const styles = StyleSheet.create({
   message: {
     textAlign: 'center',
     margin: 24,
-  },
-  childSwitch: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    overflow: 'hidden',
-    padding: 4,
-    gap: 4,
-  },
-  childOption: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  childOptionLabelActive: {
-    color: '#ffffff',
   },
   listContent: {
     gap: 8,
