@@ -7,10 +7,21 @@ export type ThemedViewProps = ViewProps & {
   lightColor?: string;
   darkColor?: string;
   type?: ThemeColor;
+  /** Ajoute une bordure fine (`theme.border`) — définit visuellement les cartes/surfaces. */
+  bordered?: boolean;
 };
 
-export function ThemedView({ style, lightColor, darkColor, type, ...otherProps }: ThemedViewProps) {
+export function ThemedView({ style, lightColor, darkColor, type, bordered, ...otherProps }: ThemedViewProps) {
   const theme = useTheme();
 
-  return <View style={[{ backgroundColor: theme[type ?? 'background'] }, style]} {...otherProps} />;
+  return (
+    <View
+      style={[
+        { backgroundColor: theme[type ?? 'background'] },
+        bordered && { borderWidth: 1, borderColor: theme.border },
+        style,
+      ]}
+      {...otherProps}
+    />
+  );
 }

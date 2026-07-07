@@ -31,7 +31,7 @@ export class SyncService {
     const since = new Date(lastPulledAt);
     const timestamp = Date.now();
 
-    const [school, classes, students, revokedCards, currentUser] = await Promise.all([
+    const [school, classes, students, revokedCards, currentUser, attendanceRecords] = await Promise.all([
       this.prisma.school.findUnique({ where: { id: schoolId } }),
       this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
       this.prisma.student.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
@@ -45,6 +45,12 @@ export class SyncService {
         where: { id: userId },
         include: { assignedClasses: { where: { schoolId } } },
       }),
+      // Filtré par `receivedAt` (horodatage serveur) et non `recordedAt` (horodatage
+      // métier) : un pointage vieux de 3 jours mais reçu il y a une minute doit
+      // quand même remonter dans ce delta.
+      this.prisma.attendanceRecord.findMany({
+        where: { student: { schoolId }, receivedAt: { gt: since } },
+      }),
     ]);
 
     return {
@@ -55,6 +61,7 @@ export class SyncService {
         students: bucket(students.map(toStudentRow)),
         revoked_cards: bucket(revokedCards.map((c) => ({ id: c.id, card_id: c.id }))),
         assigned_classes: bucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow)),
+        attendance_records: bucket(attendanceRecords.map(toAttendanceRecordRow)),
       },
     };
   }
@@ -98,6 +105,24 @@ function toAssignedClassRow(schoolClass: { id: string }) {
   return {
     id: schoolClass.id,
     school_class_id: schoolClass.id,
+  };
+}
+
+function toAttendanceRecordRow(record: {
+  id: string;
+  studentId: string;
+  checkpoint: string;
+  direction: string;
+  recordedAt: Date;
+  isLate: boolean;
+}) {
+  return {
+    id: record.id,
+    student_id: record.studentId,
+    checkpoint: record.checkpoint.toLowerCase(),
+    direction: record.direction.toLowerCase(),
+    recorded_at: record.recordedAt.getTime(),
+    is_late: record.isLate,
   };
 }
 

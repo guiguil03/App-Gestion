@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Q } from '@nozbe/watermelondb';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { useTheme } from '@/hooks/use-theme';
 import { Buffer } from 'buffer';
 
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
@@ -21,6 +21,7 @@ import { parseCardQrCode, verifyCardSignature } from '@/services/qrVerify';
 const RESCAN_COOLDOWN_MS = 4000;
 
 export default function ScanScreen() {
+  const theme = useTheme();
   const database = useOptionalDatabase();
   const recordAttendance = useRecordAttendance();
   const [permission, requestPermission] = useCameraPermissions();
@@ -114,17 +115,11 @@ export default function ScanScreen() {
       />
 
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour" onPress={() => router.back()}>
-          <ThemedView type="backgroundElement" style={styles.backButton}>
-            <ThemedText type="smallBold">← Retour</ThemedText>
-          </ThemedView>
-        </Pressable>
-
         <ThemedView type="backgroundElement" style={styles.checkpointSwitch}>
           {(['portail', 'classe'] as const).map((option) => (
             <Pressable
               key={option}
-              style={[styles.checkpointOption, checkpoint === option && styles.checkpointOptionActive]}
+              style={[styles.checkpointOption, checkpoint === option && { backgroundColor: theme.primary }]}
               onPress={() => setCheckpoint(option)}
             >
               <ThemedText type="smallBold">{option === 'portail' ? 'Portail' : 'Salle de classe'}</ThemedText>
@@ -159,11 +154,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  backButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
   checkpointSwitch: {
     flex: 1,
     flexDirection: 'row',
@@ -174,8 +164,5 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-  },
-  checkpointOptionActive: {
-    backgroundColor: '#208AEF',
   },
 });

@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { useTheme } from '@/hooks/use-theme';
 import { useAssignedClasses } from '@/features/classes/hooks/useAssignedClasses';
 import { useClassAttendanceSummary } from '@/features/attendance/hooks/useClassAttendanceSummary';
-
-const BRAND_COLOR = '#208AEF';
-const SUCCESS_COLOR = '#16A34A';
-const WARNING_COLOR = '#F59E0B';
-const DANGER_COLOR = '#DC2626';
+import { useClassAttendanceTrend } from '@/features/attendance/hooks/useClassAttendanceTrend';
+import { AttendanceTrendChart } from '@/features/attendance/components/AttendanceTrendChart';
 
 const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -20,6 +18,7 @@ const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', {
 });
 
 export default function TeacherDashboardScreen() {
+  const theme = useTheme();
   const database = useOptionalDatabase();
   const { classes, isLoading: classesLoading } = useAssignedClasses();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -36,6 +35,7 @@ export default function TeacherDashboardScreen() {
   }, [classes, selectedClassId]);
 
   const summary = useClassAttendanceSummary(selectedClassId);
+  const trend = useClassAttendanceTrend(selectedClassId);
 
   if (!database) {
     return (
@@ -62,21 +62,24 @@ export default function TeacherDashboardScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
+      <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>
           Présence du jour
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.dateLabel}>
           {TODAY_LABEL}
         </ThemedText>
-      </ThemedView>
+      </View>
 
       {classes.length > 1 && (
         <ThemedView type="backgroundElement" style={styles.classSwitch}>
           {classes.map((schoolClass) => (
             <Pressable
               key={schoolClass.id}
-              style={[styles.classOption, selectedClassId === schoolClass.id && styles.classOptionActive]}
+              style={[
+                styles.classOption,
+                selectedClassId === schoolClass.id && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setSelectedClassId(schoolClass.id)}
             >
               <ThemedText
@@ -90,13 +93,15 @@ export default function TeacherDashboardScreen() {
         </ThemedView>
       )}
 
-      <ThemedView style={styles.summaryRow}>
-        <SummaryStat label="Présents" value={summary.presentCount} color={SUCCESS_COLOR} icon="✓" />
-        <SummaryStat label="En retard" value={summary.lateCount} color={WARNING_COLOR} icon="⏱" />
-        <SummaryStat label="Absents" value={summary.absentCount} color={DANGER_COLOR} icon="✕" />
-      </ThemedView>
+      <View style={styles.summaryRow}>
+        <SummaryStat label="Présents" value={summary.presentCount} color={theme.success} icon="checkmark-circle" />
+        <SummaryStat label="En retard" value={summary.lateCount} color={theme.warning} icon="time" />
+        <SummaryStat label="Absents" value={summary.absentCount} color={theme.danger} icon="close-circle" />
+      </View>
 
-      <ThemedView style={styles.listHeader}>
+      <AttendanceTrendChart trend={trend} />
+
+      <View style={styles.listHeader}>
         <ThemedText type="smallBold" style={styles.sectionTitle}>
           Derniers scans
         </ThemedText>
@@ -107,7 +112,7 @@ export default function TeacherDashboardScreen() {
             </ThemedText>
           </ThemedView>
         )}
-      </ThemedView>
+      </View>
 
       <FlatList
         data={summary.recentRecords}
@@ -115,23 +120,23 @@ export default function TeacherDashboardScreen() {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" style={styles.row}>
+          <ThemedView type="backgroundElement" bordered style={styles.row}>
             <ThemedView
-              style={[styles.avatar, { backgroundColor: item.isLate ? WARNING_COLOR : SUCCESS_COLOR }]}
+              style={[styles.avatar, { backgroundColor: item.isLate ? theme.warning : theme.success }]}
             >
               <ThemedText style={styles.avatarLabel}>{item.studentName.charAt(0).toUpperCase()}</ThemedText>
             </ThemedView>
 
-            <ThemedView style={styles.rowContent}>
+            <View style={styles.rowContent}>
               <ThemedText type="smallBold">{item.studentName}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {item.checkpoint === 'portail' ? 'Portail' : 'Salle de classe'} ·{' '}
                 {item.recordedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </ThemedText>
-            </ThemedView>
+            </View>
 
             {item.isLate && (
-              <ThemedView style={[styles.lateBadge, { backgroundColor: WARNING_COLOR }]}>
+              <ThemedView style={[styles.lateBadge, { backgroundColor: theme.warning }]}>
                 <ThemedText type="small" style={styles.lateBadgeLabel}>
                   Retard
                 </ThemedText>
@@ -140,25 +145,31 @@ export default function TeacherDashboardScreen() {
           </ThemedView>
         )}
         ListEmptyComponent={
-          <ThemedView style={styles.emptyList}>
+          <View style={styles.emptyList}>
             <ThemedText themeColor="textSecondary">Aucun scan aujourd'hui pour cette classe.</ThemedText>
-          </ThemedView>
+          </View>
         }
       />
 
-      <Pressable style={styles.scanButton} onPress={() => router.push('/(teacher)/scan')}>
-        <ThemedText style={styles.scanButtonIcon}>📷</ThemedText>
-        <ThemedText style={styles.scanButtonLabel}>Scanner une carte</ThemedText>
-      </Pressable>
     </ThemedView>
   );
 }
 
-function SummaryStat({ label, value, color, icon }: { label: string; value: number; color: string; icon: string }) {
+function SummaryStat({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}) {
   return (
-    <ThemedView type="backgroundElement" style={styles.summaryStat}>
+    <ThemedView type="backgroundElement" bordered style={styles.summaryStat}>
       <ThemedView style={[styles.summaryIcon, { backgroundColor: color }]}>
-        <ThemedText style={styles.summaryIconLabel}>{icon}</ThemedText>
+        <Ionicons name={icon} size={16} color="#ffffff" />
       </ThemedView>
       <ThemedText type="title" style={[styles.summaryValue, { color }]}>
         {value}
@@ -203,9 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  classOptionActive: {
-    backgroundColor: BRAND_COLOR,
-  },
   classOptionLabelActive: {
     color: '#ffffff',
   },
@@ -227,11 +235,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
-  },
-  summaryIconLabel: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
   },
   summaryValue: {
     fontSize: 26,
@@ -291,28 +294,5 @@ const styles = StyleSheet.create({
   emptyList: {
     paddingVertical: 24,
     alignItems: 'center',
-  },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: BRAND_COLOR,
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginBottom: 12,
-    shadowColor: BRAND_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  scanButtonIcon: {
-    fontSize: 18,
-  },
-  scanButtonLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

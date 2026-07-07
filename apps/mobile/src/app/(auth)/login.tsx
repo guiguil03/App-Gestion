@@ -9,15 +9,17 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { getLoginErrorMessage, useLogin } from '@/api/hooks/useLogin';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { initialRouteForRole } from '@/navigation/roleGuard';
 
-const BRAND_COLOR = '#208AEF';
-
 export default function LoginScreen() {
+  const theme = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [usernameFocused, setUsernameFocused] = useState(false);
@@ -42,26 +44,38 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: theme.primary }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={styles.hero}>
         <View style={styles.logoBadge}>
-          <ThemedText style={styles.logoEmoji}>🏫</ThemedText>
+          <Ionicons name="school" size={36} color="#ffffff" />
         </View>
         <ThemedText style={styles.appName}>Présence Scolaire</ThemedText>
         <ThemedText style={styles.appSubtitle}>Suivi de présence en temps réel</ThemedText>
       </View>
 
-      <View style={styles.card}>
-        <ThemedText style={styles.cardTitle}>Connexion</ThemedText>
+      <ThemedView type="background" style={styles.card}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.cardTitle}>
+          Connexion
+        </ThemedText>
 
         <View style={styles.field}>
-          <ThemedText type="small" style={styles.label}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
             Identifiant
           </ThemedText>
           <TextInput
-            style={[styles.input, usernameFocused && styles.inputFocused]}
+            style={[
+              styles.input,
+              {
+                borderColor: usernameFocused ? theme.primary : theme.backgroundSelected,
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+              },
+            ]}
             placeholder="ex. surveillant1"
-            placeholderTextColor="#9AA0A8"
+            placeholderTextColor={theme.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
             value={username}
@@ -72,13 +86,20 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.field}>
-          <ThemedText type="small" style={styles.label}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
             Mot de passe
           </ThemedText>
           <TextInput
-            style={[styles.input, passwordFocused && styles.inputFocused]}
+            style={[
+              styles.input,
+              {
+                borderColor: passwordFocused ? theme.primary : theme.backgroundSelected,
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+              },
+            ]}
             placeholder="••••••••"
-            placeholderTextColor="#9AA0A8"
+            placeholderTextColor={theme.textSecondary}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -87,11 +108,17 @@ export default function LoginScreen() {
           />
         </View>
 
-        {error ? <ThemedText style={styles.error}>{getLoginErrorMessage(error)}</ThemedText> : null}
+        {error ? (
+          <View style={[styles.errorBox, { backgroundColor: `${theme.danger}1A` }]}>
+            <Ionicons name="alert-circle" size={16} color={theme.danger} />
+            <ThemedText style={[styles.error, { color: theme.danger }]}>{getLoginErrorMessage(error)}</ThemedText>
+          </View>
+        ) : null}
 
         <Pressable
           style={({ pressed }) => [
             styles.button,
+            { backgroundColor: theme.primary },
             !canSubmit && styles.buttonDisabled,
             pressed && canSubmit && styles.buttonPressed,
           ]}
@@ -104,7 +131,7 @@ export default function LoginScreen() {
             <ThemedText style={styles.buttonLabel}>Se connecter</ThemedText>
           )}
         </Pressable>
-      </View>
+      </ThemedView>
     </KeyboardAvoidingView>
   );
 }
@@ -112,7 +139,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BRAND_COLOR,
   },
   hero: {
     flex: 1,
@@ -130,9 +156,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  logoEmoji: {
-    fontSize: 36,
-  },
   appName: {
     fontSize: 24,
     fontWeight: '700',
@@ -143,7 +166,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   card: {
-    backgroundColor: '#ffffff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
@@ -161,7 +183,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    color: '#9AA0A8',
     marginBottom: 4,
   },
   field: {
@@ -169,24 +190,15 @@ const styles = StyleSheet.create({
   },
   label: {
     marginLeft: 2,
-    color: '#6B7280',
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F7F8FA',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#111318',
-  },
-  inputFocused: {
-    borderColor: BRAND_COLOR,
-    backgroundColor: '#ffffff',
   },
   button: {
-    backgroundColor: BRAND_COLOR,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -196,15 +208,23 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   buttonDisabled: {
-    backgroundColor: '#B7D9F8',
+    opacity: 0.4,
   },
   buttonLabel: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
   error: {
-    color: '#D32F2F',
+    flex: 1,
     fontSize: 13,
   },
 });

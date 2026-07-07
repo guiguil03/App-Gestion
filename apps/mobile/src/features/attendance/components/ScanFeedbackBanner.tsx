@@ -1,7 +1,9 @@
 import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 
 export type ScanFeedback =
   | { status: 'ok'; isLate: boolean }
@@ -10,9 +12,6 @@ export type ScanFeedback =
   | { status: 'falsifiee' }
   | { status: 'erreur' };
 
-const SUCCESS_COLOR = '#16A34A';
-const WARNING_COLOR = '#F59E0B';
-const DANGER_COLOR = '#DC2626';
 const NEUTRAL_COLOR = '#4B5563';
 
 function labelFor(feedback: ScanFeedback): string {
@@ -30,47 +29,48 @@ function labelFor(feedback: ScanFeedback): string {
   }
 }
 
-function iconFor(feedback: ScanFeedback): string {
+function iconFor(feedback: ScanFeedback): keyof typeof Ionicons.glyphMap {
   switch (feedback.status) {
     case 'ok':
-      return feedback.isLate ? '⏱' : '✓';
+      return feedback.isLate ? 'time' : 'checkmark-circle';
     case 'revoked':
     case 'falsifiee':
-      return '⛔';
+      return 'close-circle';
     case 'invalide':
-      return '?';
+      return 'help-circle';
     case 'erreur':
-      return '!';
-  }
-}
-
-function colorFor(feedback: ScanFeedback): string {
-  switch (feedback.status) {
-    case 'ok':
-      return feedback.isLate ? WARNING_COLOR : SUCCESS_COLOR;
-    case 'revoked':
-    case 'falsifiee':
-      return DANGER_COLOR;
-    case 'invalide':
-      return NEUTRAL_COLOR;
-    case 'erreur':
-      return DANGER_COLOR;
+      return 'alert-circle';
   }
 }
 
 export function ScanFeedbackBanner({ feedback }: { feedback: ScanFeedback | null }) {
+  const theme = useTheme();
   if (!feedback) return null;
 
-  const color = colorFor(feedback);
+  const color = colorFor(feedback, theme);
 
   return (
     <ThemedView style={[styles.feedback, { backgroundColor: color }]}>
-      <ThemedText style={styles.icon}>{iconFor(feedback)}</ThemedText>
+      <Ionicons name={iconFor(feedback)} size={20} color="#ffffff" />
       <ThemedText type="smallBold" style={styles.label}>
         {labelFor(feedback)}
       </ThemedText>
     </ThemedView>
   );
+}
+
+function colorFor(feedback: ScanFeedback, theme: { success: string; warning: string; danger: string }): string {
+  switch (feedback.status) {
+    case 'ok':
+      return feedback.isLate ? theme.warning : theme.success;
+    case 'revoked':
+    case 'falsifiee':
+      return theme.danger;
+    case 'invalide':
+      return NEUTRAL_COLOR;
+    case 'erreur':
+      return theme.danger;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -90,10 +90,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
-  },
-  icon: {
-    fontSize: 18,
-    color: '#ffffff',
   },
   label: {
     color: '#ffffff',
