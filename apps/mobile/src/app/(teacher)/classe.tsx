@@ -1,6 +1,7 @@
 // apps/mobile/src/app/(teacher)/classe.tsx
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ChipSelector } from '@/components/chip-selector';
@@ -74,6 +75,20 @@ export default function ClasseScreen() {
         />
       )}
 
+      {selectedClassId && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.sessionButton,
+            { backgroundColor: theme.primary },
+            pressed && styles.sessionButtonPressed,
+          ]}
+          onPress={() => router.push({ pathname: '/(teacher)/session', params: { classId: selectedClassId } })}
+        >
+          <Ionicons name="qr-code-outline" size={18} color="#ffffff" />
+          <ThemedText style={styles.sessionButtonLabel}>Créer une session</ThemedText>
+        </Pressable>
+      )}
+
       <FlatList
         data={roster}
         keyExtractor={(entry) => entry.studentId}
@@ -120,6 +135,22 @@ const styles = StyleSheet.create({
   message: {
     textAlign: 'center',
     margin: 24,
+  },
+  sessionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  sessionButtonPressed: {
+    opacity: 0.85,
+  },
+  sessionButtonLabel: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   list: {
     flex: 1,
