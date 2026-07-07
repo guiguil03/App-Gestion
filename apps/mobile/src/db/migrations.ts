@@ -47,5 +47,14 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: 'parent_guardians',
+          columns: [{ name: 'address', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
   ],
 });
