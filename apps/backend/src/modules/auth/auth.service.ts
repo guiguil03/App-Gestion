@@ -10,6 +10,7 @@ export type LoginResult = {
   refreshToken: string;
   role: Role;
   schoolId: string | null;
+  studentId: string | null;
 };
 
 type TokenSubject = Omit<AuthenticatedUser, 'type'>;
@@ -32,6 +33,7 @@ export class AuthService {
       username: user.username,
       role: user.role as Role,
       schoolId: user.schoolId,
+      studentId: user.studentId,
     });
   }
 
@@ -52,6 +54,7 @@ export class AuthService {
       username: payload.username,
       role: payload.role,
       schoolId: payload.schoolId,
+      studentId: payload.studentId,
     });
   }
 
@@ -61,6 +64,7 @@ export class AuthService {
       refreshToken: this.jwtService.sign({ ...subject, type: 'refresh' }, { expiresIn: '30d' }),
       role: subject.role,
       schoolId: subject.schoolId,
+      studentId: subject.studentId,
     };
   }
 }
