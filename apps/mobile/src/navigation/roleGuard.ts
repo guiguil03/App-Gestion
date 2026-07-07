@@ -1,13 +1,17 @@
 import type { UserRole } from '@/api/hooks/useLogin';
 
 /** Where to land a user right after a successful login, based on their role. */
-export function initialRouteForRole(role: UserRole): '/(teacher)/dashboard' | '/(parent)/children' {
+export function initialRouteForRole(
+  role: UserRole,
+): '/(teacher)/dashboard' | '/(parent)/children' | '/(student)/scan' {
   switch (role) {
     case 'ENSEIGNANT':
     case 'SURVEILLANT':
       return '/(teacher)/dashboard';
     case 'PARENT':
       return '/(parent)/children';
+    case 'ELEVE':
+      return '/(student)/scan';
     case 'DIRECTION':
     case 'ADMIN':
       // Pas d'écran mobile dédié en v1 : ces rôles utilisent le dashboard web.

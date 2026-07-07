@@ -17,6 +17,7 @@ const ROLE_LABELS: Record<string, string> = {
   ENSEIGNANT: 'Enseignant',
   SURVEILLANT: 'Surveillant',
   PARENT: 'Parent',
+  ELEVE: 'Élève',
 };
 
 export function ProfileScreen() {
