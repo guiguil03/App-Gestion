@@ -1,30 +1,35 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
+// NOTE: the built-in WatermelonDB `id` column IS the id shared with the
+// backend (the sync protocol matches records by `id` in both directions),
+// so no separate `server_id` column is needed anywhere in this schema.
 export const schema = appSchema({
-  version: 1,
+  version: 3,
   tables: [
     tableSchema({
       name: 'schools',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'name', type: 'string' },
         { name: 'attendance_reference_time', type: 'string' }, // "HH:mm"
         { name: 'attendance_tolerance_minutes', type: 'number' },
+        { name: 'card_signing_public_key', type: 'string', isOptional: true }, // hex Ed25519
       ],
     }),
     tableSchema({
       name: 'school_classes',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'school_id', type: 'string', isIndexed: true },
         { name: 'name', type: 'string' },
         { name: 'promotion', type: 'string' },
       ],
     }),
     tableSchema({
+      name: 'assigned_classes',
+      columns: [{ name: 'school_class_id', type: 'string', isIndexed: true }],
+    }),
+    tableSchema({
       name: 'students',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'school_id', type: 'string', isIndexed: true },
         { name: 'school_class_id', type: 'string', isIndexed: true },
         { name: 'last_name', type: 'string' },
@@ -38,7 +43,6 @@ export const schema = appSchema({
     tableSchema({
       name: 'parent_guardians',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'student_id', type: 'string', isIndexed: true },
         { name: 'full_name', type: 'string' },
         { name: 'relationship', type: 'string' },
@@ -50,7 +54,6 @@ export const schema = appSchema({
     tableSchema({
       name: 'student_cards',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'student_id', type: 'string', isIndexed: true },
         { name: 'card_id', type: 'string', isIndexed: true }, // UUID encoded in the QR
         { name: 'signature', type: 'string' }, // base64 Ed25519 signature
@@ -61,7 +64,6 @@ export const schema = appSchema({
     tableSchema({
       name: 'attendance_records',
       columns: [
-        { name: 'server_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'student_id', type: 'string', isIndexed: true },
         { name: 'checkpoint', type: 'string' }, // 'portail' | 'classe'
         { name: 'direction', type: 'string' }, // 'entree' | 'sortie'
@@ -73,7 +75,6 @@ export const schema = appSchema({
     tableSchema({
       name: 'absences',
       columns: [
-        { name: 'server_id', type: 'string', isIndexed: true },
         { name: 'student_id', type: 'string', isIndexed: true },
         { name: 'date', type: 'string' }, // "YYYY-MM-DD"
         { name: 'justified', type: 'boolean' },

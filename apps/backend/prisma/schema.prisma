@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DIRECTION
+  ENSEIGNANT
+  SURVEILLANT
+  PARENT
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  BOTH
+}
+
+enum Checkpoint {
+  PORTAIL
+  CLASSE
+}
+
+enum AttendanceDirection {
+  ENTREE
+  SORTIE
+}
+
+// NOTE: `id` est l'identifiant partagé avec le mobile (WatermelonDB) — le
+// protocole de sync matche les enregistrements par cet id dans les deux sens,
+// donc aucune colonne `server_id` séparée n'est nécessaire (voir aussi
+// apps/mobile/src/db/schema.ts).
+model School {
+  id                         String    @id @default(uuid())
+  name                       String
+  attendanceReferenceTime    String    @map("attendance_reference_time") // "HH:mm"
+  attendanceToleranceMinutes Int       @map("attendance_tolerance_minutes")
+  // Paire Ed25519 utilisée pour signer les cartes QR de cette école : la clé
+  // privée ne quitte jamais le backend, la clé publique est synchronisée vers
+  // les appareils pour une vérification de signature 100% hors-ligne.
+  cardSigningPrivateKey      String    @map("card_signing_private_key")
+  cardSigningPublicKey       String    @map("card_signing_public_key")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+  deletedAt                  DateTime? @map("deleted_at")
+
+  classes  SchoolClass[]
+  students Student[]
+  users    User[]
+
+  @@map("schools")
+}
+
+model SchoolClass {
+  id        String    @id @default(uuid())
+  schoolId  String    @map("school_id")
+  name      String
+  promotion String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  school           School    @relation(fields: [schoolId], references: [id])
+  students         Student[]
+  assignedTeachers User[]    @relation("class_assignments")
+
+  @@index([schoolId])
+  @@map("school_classes")
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  schoolId      String    @map("school_id")
+  schoolClassId String    @map("school_class_id")
+  lastName      String    @map("last_name")
+  middleName    String?   @map("middle_name")
+  firstName     String    @map("first_name")
+  sex           String
+  dateOfBirth   String    @map("date_of_birth")
+  photoUrl      String?   @map("photo_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  school      School             @relation(fields: [schoolId], references: [id])
+  schoolClass SchoolClass        @relation(fields: [schoolClassId], references: [id])
+  parents     ParentGuardian[]
+  cards       StudentCard[]
+  attendances AttendanceRecord[]
+
+  @@index([schoolId])
+  @@index([schoolClassId])
+  @@map("students")
+}
+
+model ParentGuardian {
+  id                   String              @id @default(uuid())
+  studentId            String              @map("student_id")
+  fullName             String              @map("full_name")
+  relationship         String
+  phoneNumber          String              @map("phone_number")
+  secondaryPhoneNumber String?             @map("secondary_phone_number")
+  notificationChannel  NotificationChannel @default(BOTH) @map("notification_channel")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@map("parent_guardians")
+}
+
+model StudentCard {
+  id        String   @id // == cardId encodé dans le QR
+  studentId String   @map("student_id")
+  signature String // signature Ed25519 en base64
+  issuedAt  DateTime @map("issued_at")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@map("student_cards")
+}
+
+model AttendanceRecord {
+  id         String              @id // généré côté mobile (WatermelonDB), réutilisé tel quel
+  studentId  String              @map("student_id")
+  checkpoint Checkpoint
+  direction  AttendanceDirection
+  recordedAt DateTime            @map("recorded_at")
+  isLate     Boolean             @map("is_late")
+  receivedAt DateTime            @default(now()) @map("received_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([recordedAt])
+  @@map("attendance_records")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  schoolId     String?  @map("school_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  school          School?       @relation(fields: [schoolId], references: [id])
+  assignedClasses SchoolClass[] @relation("class_assignments")
+
+  @@map("users")
+}

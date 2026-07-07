@@ -1,32 +1,27 @@
-import { useEffect, useState } from 'react';
+// apps/mobile/src/app/(parent)/children.tsx
 import { FlatList, StyleSheet } from 'react-native';
-import { useDatabase } from '@nozbe/watermelondb/react';
 
-import Student from '@/db/models/Student';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-
-// Le backend ne synchronise vers un compte parent que les fiches de ses
-// propres enfants (voir SyncModule) : toute la table locale `students`
-// représente donc déjà la liste "mes enfants".
-function useChildren(): Student[] {
-  const database = useDatabase();
-  const [children, setChildren] = useState<Student[]>([]);
-
-  useEffect(() => {
-    const subscription = database
-      .get<Student>('students')
-      .query()
-      .observe()
-      .subscribe(setChildren);
-    return () => subscription.unsubscribe();
-  }, [database]);
-
-  return children;
-}
+import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { useTheme } from '@/hooks/use-theme';
+import { useChildren } from '@/features/children/hooks/useChildren';
 
 export default function ChildrenScreen() {
+  const theme = useTheme();
+  const database = useOptionalDatabase();
   const children = useChildren();
+
+  if (!database) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={styles.message}>
+          Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app
+          via un dev client (npx expo run:android ou EAS Build) pour tester cet écran.
+        </ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -36,15 +31,17 @@ export default function ChildrenScreen() {
       <FlatList
         data={children}
         keyExtractor={(student) => student.id}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" style={styles.row}>
+          <ThemedView type="backgroundElement" bordered style={styles.row}>
+            <ThemedView style={[styles.avatar, { backgroundColor: theme.primary }]}>
+              <ThemedText style={styles.avatarLabel}>{item.fullName.charAt(0).toUpperCase()}</ThemedText>
+            </ThemedView>
             <ThemedText type="smallBold">{item.fullName}</ThemedText>
           </ThemedView>
         )}
         ListEmptyComponent={
-          <ThemedText themeColor="textSecondary">
-            Aucun enfant synchronisé pour le moment.
-          </ThemedText>
+          <ThemedText themeColor="textSecondary">Aucun enfant synchronisé pour le moment.</ThemedText>
         }
       />
     </ThemedView>
@@ -58,11 +55,32 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
+    fontSize: 24,
     marginBottom: 8,
   },
+  listContent: {
+    gap: 8,
+  },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: 12,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLabel: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  message: {
+    textAlign: 'center',
   },
 });
