@@ -110,6 +110,7 @@ model ParentGuardian {
   relationship         String
   phoneNumber          String              @map("phone_number")
   secondaryPhoneNumber String?             @map("secondary_phone_number")
+  address              String?
   notificationChannel  NotificationChannel @default(BOTH) @map("notification_channel")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
