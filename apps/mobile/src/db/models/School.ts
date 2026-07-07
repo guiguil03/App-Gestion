@@ -11,4 +11,5 @@ export default class School extends Model {
   @text('name') name: string;
   @text('attendance_reference_time') attendanceReferenceTime: string; // "HH:mm"
   @field('attendance_tolerance_minutes') attendanceToleranceMinutes: number;
+  @text('card_signing_public_key') cardSigningPublicKey?: string; // hex Ed25519
 }

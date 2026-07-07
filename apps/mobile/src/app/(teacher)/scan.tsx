@@ -6,11 +6,14 @@ import { Q } from '@nozbe/watermelondb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { Buffer } from 'buffer';
+
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
 import { useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
+import School from '@/db/models/School';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
-import { parseCardQrCode } from '@/services/qrVerify';
+import { parseCardQrCode, verifyCardSignature } from '@/services/qrVerify';
 
 // Le même QR peut rester dans le champ de la caméra pendant plusieurs frames :
 // on ignore les scans répétés de la même carte pendant ce délai.
@@ -51,9 +54,24 @@ export default function ScanScreen() {
     }
     lastScan.current = { cardId, at: now };
 
-    // La vérification de signature Ed25519 (offline, via la clé publique de
-    // l'école) est branchée dans qrVerify.verifyCardSignature — omise ici en
-    // attendant la distribution de la clé publique depuis le backend.
+    // La clé publique de l'école n'est présente localement que pour l'école
+    // du compte connecté (le pull est scopé par tenant) : si payload.schoolId
+    // ne correspond pas à cette école, la recherche échoue et la carte est
+    // traitée comme non authentique.
+    const schools = await database.get<School>('schools').query(Q.where('id', parsed.payload.schoolId)).fetch();
+    const school = schools[0];
+    if (!school?.cardSigningPublicKey) {
+      setFeedback({ status: 'falsifiee' });
+      return;
+    }
+
+    const publicKeyBytes = new Uint8Array(Buffer.from(school.cardSigningPublicKey, 'hex'));
+    const isAuthentic = await verifyCardSignature(parsed, publicKeyBytes);
+    if (!isAuthentic) {
+      setFeedback({ status: 'falsifiee' });
+      return;
+    }
+
     const isRevoked = (await database.get('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
 
     if (isRevoked) {

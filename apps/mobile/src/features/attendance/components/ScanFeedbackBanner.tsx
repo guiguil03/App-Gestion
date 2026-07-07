@@ -6,6 +6,7 @@ export type ScanFeedback =
   | { status: 'ok'; isLate: boolean }
   | { status: 'revoked' }
   | { status: 'invalide' }
+  | { status: 'falsifiee' }
   | { status: 'erreur' };
 
 function labelFor(feedback: ScanFeedback): string {
@@ -16,6 +17,8 @@ function labelFor(feedback: ScanFeedback): string {
       return 'Carte révoquée — refuser';
     case 'invalide':
       return 'QR code illisible';
+    case 'falsifiee':
+      return 'Carte non authentique — refuser';
     case 'erreur':
       return "Erreur d'enregistrement, réessayez";
   }

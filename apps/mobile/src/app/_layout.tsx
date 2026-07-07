@@ -3,6 +3,7 @@ import { DatabaseProvider } from '@nozbe/watermelondb/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { queryClient } from '@/api/client';
@@ -20,6 +21,10 @@ function MaybeDatabaseProvider({ children }: { children: ReactNode }) {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <MaybeDatabaseProvider>

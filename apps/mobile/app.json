@@ -9,8 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.presenceSchool.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "La caméra est utilisée pour scanner le QR code de la carte d'élève lors du pointage."
+        "NSCameraUsageDescription": "La caméra est utilisée pour scanner le QR code de la carte d'élève lors du pointage.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -25,7 +27,8 @@
         "CAMERA",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.presenceSchool.app"
     },
     "web": {
       "output": "static",

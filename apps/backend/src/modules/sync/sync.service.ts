@@ -65,12 +65,16 @@ function toSchoolRow(school: {
   name: string;
   attendanceReferenceTime: string;
   attendanceToleranceMinutes: number;
+  cardSigningPublicKey: string;
 }) {
   return {
     id: school.id,
     name: school.name,
     attendance_reference_time: school.attendanceReferenceTime,
     attendance_tolerance_minutes: school.attendanceToleranceMinutes,
+    // Clé publique Ed25519 (hex) — la privée ne quitte jamais le backend.
+    // Permet la vérification de signature de carte 100% offline côté mobile.
+    card_signing_public_key: school.cardSigningPublicKey,
   };
 }
 

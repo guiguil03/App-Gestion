@@ -7,6 +7,7 @@ import { PrismaModule } from '@/database/prisma.module';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { CardsModule } from '@/modules/cards/cards.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { SchoolsModule } from '@/modules/schools/schools.module';
 import { StudentsModule } from '@/modules/students/students.module';
 import { SyncModule } from '@/modules/sync/sync.module';
@@ -22,6 +23,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     StudentsModule,
     CardsModule,
     AttendanceModule,
+    NotificationsModule,
     SyncModule,
   ],
 })
