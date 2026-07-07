@@ -9,6 +9,7 @@ import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
 import { useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
+import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
 import { parseCardQrCode } from '@/services/qrVerify';
 
 // Le même QR peut rester dans le champ de la caméra pendant plusieurs frames :
@@ -105,6 +106,7 @@ export default function ScanScreen() {
         ))}
       </ThemedView>
 
+      <SyncStatusBadge />
       <ScanFeedbackBanner feedback={feedback} />
     </ThemedView>
   );

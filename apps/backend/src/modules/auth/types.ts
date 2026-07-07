@@ -1,8 +1,14 @@
 export type Role = 'ADMIN' | 'DIRECTION' | 'ENSEIGNANT' | 'SURVEILLANT' | 'PARENT';
 
+// `type` distingue un access token d'un refresh token dans le JWT : sans ça,
+// un refresh token (valide 30j) serait accepté tel quel comme access token
+// par n'importe quel endpoint protégé par JwtAuthGuard.
+export type TokenType = 'access' | 'refresh';
+
 export type AuthenticatedUser = {
   userId: string;
   username: string;
   role: Role;
   schoolId: string | null;
+  type: TokenType;
 };

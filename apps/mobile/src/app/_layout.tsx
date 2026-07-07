@@ -7,6 +7,7 @@ import { useColorScheme } from 'react-native';
 
 import { queryClient } from '@/api/client';
 import { database } from '@/db/database';
+import { SyncStatusProvider } from '@/features/sync/SyncStatusProvider';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,9 +24,11 @@ export default function RootLayout() {
   return (
     <MaybeDatabaseProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </ThemeProvider>
+        <SyncStatusProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </ThemeProvider>
+        </SyncStatusProvider>
       </QueryClientProvider>
     </MaybeDatabaseProvider>
   );

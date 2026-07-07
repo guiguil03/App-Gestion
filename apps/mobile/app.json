@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Presence Scolaire",
-    "slug": "presence-scolaire-mobile",
+    "slug": "project-presence",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -21,7 +21,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -49,6 +53,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a54b2601-0658-47b1-895f-1282b2b2f5ee"
+      }
+    },
+    "owner": "glafay996"
   }
 }

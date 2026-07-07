@@ -12,6 +12,8 @@ export type LoginResult = {
   schoolId: string | null;
 };
 
+type TokenSubject = Omit<AuthenticatedUser, 'type'>;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -25,18 +27,40 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    const payload: AuthenticatedUser = {
+    return this.issueTokenPair({
       userId: user.id,
       username: user.username,
       role: user.role as Role,
       schoolId: user.schoolId,
-    };
+    });
+  }
 
-    return {
-      accessToken: this.jwtService.sign(payload, { expiresIn: '15m' }),
-      refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
+  async refresh(refreshToken: string): Promise<LoginResult> {
+    let payload: AuthenticatedUser;
+    try {
+      payload = await this.jwtService.verifyAsync<AuthenticatedUser>(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Refresh token invalide ou expiré');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Refresh token invalide ou expiré');
+    }
+
+    return this.issueTokenPair({
+      userId: payload.userId,
+      username: payload.username,
       role: payload.role,
       schoolId: payload.schoolId,
+    });
+  }
+
+  private issueTokenPair(subject: TokenSubject): LoginResult {
+    return {
+      accessToken: this.jwtService.sign({ ...subject, type: 'access' }, { expiresIn: '15m' }),
+      refreshToken: this.jwtService.sign({ ...subject, type: 'refresh' }, { expiresIn: '30d' }),
+      role: subject.role,
+      schoolId: subject.schoolId,
     };
   }
 }

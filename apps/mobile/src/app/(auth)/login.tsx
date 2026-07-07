@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 
 import { getLoginErrorMessage, useLogin } from '@/api/hooks/useLogin';
 import { ThemedText } from '@/components/themed-text';
+import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { initialRouteForRole } from '@/navigation/roleGuard';
 
 const BRAND_COLOR = '#208AEF';
@@ -22,6 +23,7 @@ export default function LoginScreen() {
   const [usernameFocused, setUsernameFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const { mutate: login, isPending, error } = useLogin();
+  const { triggerSync } = useSyncStatus();
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !isPending;
 
@@ -29,7 +31,13 @@ export default function LoginScreen() {
     if (!canSubmit) return;
     login(
       { username, password },
-      { onSuccess: (response) => router.replace(initialRouteForRole(response.role)) },
+      {
+        onSuccess: (response) => {
+          // Peuple un appareil neuf (élèves/classes) avant le premier scan.
+          triggerSync();
+          router.replace(initialRouteForRole(response.role));
+        },
+      },
     );
   }
 
