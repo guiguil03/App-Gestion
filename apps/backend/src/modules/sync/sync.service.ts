@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@/database/prisma.service';
+import { AttendanceSessionsService } from '@/modules/attendance/attendance-sessions.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import type { PushChangesBody } from '@/modules/sync/dto/push-changes.dto';
@@ -25,33 +26,39 @@ export class SyncService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly attendance: AttendanceService,
+    private readonly attendanceSessions: AttendanceSessionsService,
   ) {}
 
   async pull(schoolId: string, userId: string, lastPulledAt: number): Promise<PullResult> {
     const since = new Date(lastPulledAt);
     const timestamp = Date.now();
 
-    const [school, classes, students, revokedCards, currentUser, attendanceRecords] = await Promise.all([
-      this.prisma.school.findUnique({ where: { id: schoolId } }),
-      this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
-      this.prisma.student.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
-      this.prisma.studentCard.findMany({
-        where: { revoked: true, student: { schoolId }, updatedAt: { gt: since } },
-        select: { id: true },
-      }),
-      // Pas de filtrage par `since` : l'ensemble des classes assignées est petit,
-      // on renvoie toujours la liste complète plutôt qu'un delta.
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        include: { assignedClasses: { where: { schoolId } } },
-      }),
-      // Filtré par `receivedAt` (horodatage serveur) et non `recordedAt` (horodatage
-      // métier) : un pointage vieux de 3 jours mais reçu il y a une minute doit
-      // quand même remonter dans ce delta.
-      this.prisma.attendanceRecord.findMany({
-        where: { student: { schoolId }, receivedAt: { gt: since } },
-      }),
-    ]);
+    const [school, classes, students, revokedCards, currentUser, attendanceRecords, signingKeys] =
+      await Promise.all([
+        this.prisma.school.findUnique({ where: { id: schoolId } }),
+        this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
+        this.prisma.student.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
+        this.prisma.studentCard.findMany({
+          where: { revoked: true, student: { schoolId }, updatedAt: { gt: since } },
+          select: { id: true },
+        }),
+        // Pas de filtrage par `since` : l'ensemble des classes assignées est petit,
+        // on renvoie toujours la liste complète plutôt qu'un delta.
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          include: { assignedClasses: { where: { schoolId } } },
+        }),
+        // Filtré par `receivedAt` (horodatage serveur) et non `recordedAt` (horodatage
+        // métier) : un pointage vieux de 3 jours mais reçu il y a une minute doit
+        // quand même remonter dans ce delta.
+        this.prisma.attendanceRecord.findMany({
+          where: { student: { schoolId }, receivedAt: { gt: since } },
+        }),
+        // Pas de filtrage par `since` non plus : le répertoire des clés
+        // enseignant de l'école est petit et nécessaire en entier pour
+        // vérifier hors-ligne la signature de n'importe quel enseignant.
+        this.prisma.teacherSigningKey.findMany({ where: { user: { schoolId } } }),
+      ]);
 
     return {
       timestamp,
@@ -62,11 +69,26 @@ export class SyncService {
         revoked_cards: bucket(revokedCards.map((c) => ({ id: c.id, card_id: c.id }))),
         assigned_classes: bucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow)),
         attendance_records: bucket(attendanceRecords.map(toAttendanceRecordRow)),
+        teacher_signing_keys: bucket(signingKeys.map(toTeacherSigningKeyRow)),
       },
     };
   }
 
   async push(user: AuthenticatedUser, changes: PushChangesBody['changes']): Promise<void> {
+    // Les sessions doivent être créées avant les pointages qui les
+    // référencent : un même cycle de push peut pousser les deux dans le même
+    // aller, l'ordre importe donc (cas d'un appareil élève qui aurait aussi
+    // une session à pousser n'existe pas en v1, mais reste défensif).
+    const createdSessions = changes.attendance_sessions?.created ?? [];
+    for (const raw of createdSessions) {
+      await this.attendanceSessions.createFromSync(user, raw);
+    }
+
+    const updatedSessions = changes.attendance_sessions?.updated ?? [];
+    for (const raw of updatedSessions) {
+      await this.attendanceSessions.closeFromSync(user, raw);
+    }
+
     const created = changes.attendance_records?.created ?? [];
     for (const raw of created) {
       await this.attendance.recordFromSync(user, raw);
@@ -115,6 +137,7 @@ function toAttendanceRecordRow(record: {
   direction: string;
   recordedAt: Date;
   isLate: boolean;
+  sessionId: string | null;
 }) {
   return {
     id: record.id,
@@ -123,6 +146,15 @@ function toAttendanceRecordRow(record: {
     direction: record.direction.toLowerCase(),
     recorded_at: record.recordedAt.getTime(),
     is_late: record.isLate,
+    session_id: record.sessionId,
+  };
+}
+
+function toTeacherSigningKeyRow(key: { userId: string; publicKey: string }) {
+  return {
+    id: key.userId,
+    user_id: key.userId,
+    public_key: key.publicKey,
   };
 }
 
