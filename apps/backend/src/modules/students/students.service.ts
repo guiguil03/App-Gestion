@@ -4,6 +4,8 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import * as bcrypt from 'bcryptjs';
 
 import { PrismaService } from '@/database/prisma.service';
+import type { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
+import type { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
 
 // Sans caractères ambigus à la lecture/saisie (0/O, 1/l/I).
 const PASSWORD_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -78,5 +80,95 @@ export class StudentsService {
       candidate = `${base}${suffix}`;
     }
     return candidate;
+  }
+
+  async listStudents(schoolId: string, schoolClassId?: string) {
+    return this.prisma.student.findMany({
+      where: { schoolId, schoolClassId, deletedAt: null },
+      include: { parents: true, schoolClass: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
+  async getStudent(studentId: string, schoolId: string) {
+    await this.assertBelongsToSchool(studentId, schoolId);
+    return this.prisma.student.findUniqueOrThrow({
+      where: { id: studentId },
+      include: { parents: true, schoolClass: true },
+    });
+  }
+
+  async createStudent(dto: CreateStudentDto, schoolId: string) {
+    const schoolClass = await this.prisma.schoolClass.findFirst({
+      where: { id: dto.schoolClassId, schoolId },
+    });
+    if (!schoolClass) {
+      throw new NotFoundException("Classe introuvable dans cette école");
+    }
+
+    return this.prisma.student.create({
+      data: {
+        schoolId,
+        schoolClassId: dto.schoolClassId,
+        lastName: dto.lastName,
+        middleName: dto.middleName,
+        firstName: dto.firstName,
+        sex: dto.sex,
+        dateOfBirth: dto.dateOfBirth,
+        parents: dto.parent
+          ? {
+              create: {
+                fullName: dto.parent.fullName,
+                relationship: dto.parent.relationship,
+                phoneNumber: dto.parent.phoneNumber,
+                secondaryPhoneNumber: dto.parent.secondaryPhoneNumber,
+                address: dto.parent.address,
+                notificationChannel: dto.parent.notificationChannel,
+              },
+            }
+          : undefined,
+      },
+      include: { parents: true, schoolClass: true },
+    });
+  }
+
+  async updateStudent(studentId: string, dto: UpdateStudentDto, schoolId: string) {
+    await this.assertBelongsToSchool(studentId, schoolId);
+
+    if (dto.schoolClassId) {
+      const schoolClass = await this.prisma.schoolClass.findFirst({
+        where: { id: dto.schoolClassId, schoolId },
+      });
+      if (!schoolClass) {
+        throw new NotFoundException("Classe introuvable dans cette école");
+      }
+    }
+
+    if (dto.parent) {
+      const existingParent = await this.prisma.parentGuardian.findFirst({ where: { studentId } });
+      if (existingParent) {
+        await this.prisma.parentGuardian.update({ where: { id: existingParent.id }, data: { ...dto.parent } });
+      } else {
+        await this.prisma.parentGuardian.create({ data: { studentId, ...dto.parent } });
+      }
+    }
+
+    return this.prisma.student.update({
+      where: { id: studentId },
+      data: {
+        lastName: dto.lastName,
+        middleName: dto.middleName,
+        firstName: dto.firstName,
+        sex: dto.sex,
+        dateOfBirth: dto.dateOfBirth,
+        schoolClassId: dto.schoolClassId,
+      },
+      include: { parents: true, schoolClass: true },
+    });
+  }
+
+  async setPhoto(studentId: string, schoolId: string, photoUrl: string) {
+    await this.assertBelongsToSchool(studentId, schoolId);
+    return this.prisma.student.update({ where: { id: studentId }, data: { photoUrl } });
   }
 }

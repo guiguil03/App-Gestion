@@ -33,7 +33,7 @@ export class SyncService {
     const since = new Date(lastPulledAt);
     const timestamp = Date.now();
 
-    const [school, classes, students, revokedCards, currentUser, attendanceRecords, signingKeys] =
+    const [school, classes, students, revokedCards, currentUser, attendanceRecords, signingKeys, parentGuardians] =
       await Promise.all([
         this.prisma.school.findUnique({ where: { id: schoolId } }),
         this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
@@ -58,6 +58,7 @@ export class SyncService {
         // enseignant de l'école est petit et nécessaire en entier pour
         // vérifier hors-ligne la signature de n'importe quel enseignant.
         this.prisma.teacherSigningKey.findMany({ where: { user: { schoolId } } }),
+        this.prisma.parentGuardian.findMany({ where: { student: { schoolId }, updatedAt: { gt: since } } }),
       ]);
 
     return {
@@ -70,6 +71,7 @@ export class SyncService {
         assigned_classes: bucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow)),
         attendance_records: bucket(attendanceRecords.map(toAttendanceRecordRow)),
         teacher_signing_keys: bucket(signingKeys.map(toTeacherSigningKeyRow)),
+        parent_guardians: bucket(parentGuardians.map(toParentGuardianRow)),
       },
     };
   }
@@ -155,6 +157,28 @@ function toTeacherSigningKeyRow(key: { userId: string; publicKey: string }) {
     id: key.userId,
     user_id: key.userId,
     public_key: key.publicKey,
+  };
+}
+
+function toParentGuardianRow(parent: {
+  id: string;
+  studentId: string;
+  fullName: string;
+  relationship: string;
+  phoneNumber: string;
+  secondaryPhoneNumber: string | null;
+  address: string | null;
+  notificationChannel: string;
+}) {
+  return {
+    id: parent.id,
+    student_id: parent.studentId,
+    full_name: parent.fullName,
+    relationship: parent.relationship,
+    phone_number: parent.phoneNumber,
+    secondary_phone_number: parent.secondaryPhoneNumber,
+    address: parent.address,
+    notification_channel: parent.notificationChannel.toLowerCase(),
   };
 }
 
