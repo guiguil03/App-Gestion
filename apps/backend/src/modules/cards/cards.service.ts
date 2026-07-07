@@ -38,6 +38,25 @@ export class CardsService {
     return { card, qrCode: this.signing.toQrString(payloadBase64, signature) };
   }
 
+  /** Carte active (non révoquée) d'un élève, avec le QR reconstruit à partir de la signature déjà stockée (pas de re-signature). */
+  async getActiveCard(studentId: string, schoolId: string) {
+    await this.students.assertBelongsToSchool(studentId, schoolId);
+
+    const card = await this.prisma.studentCard.findFirst({
+      where: { studentId, revoked: false },
+      orderBy: { issuedAt: 'desc' },
+    });
+    if (!card) {
+      throw new NotFoundException('Aucune carte active pour cet élève');
+    }
+
+    const payloadBase64 = Buffer.from(
+      JSON.stringify({ cardId: card.id, studentId, schoolId, issuedAt: card.issuedAt.getTime() }),
+    ).toString('base64');
+
+    return { card, qrCode: this.signing.toQrString(payloadBase64, card.signature) };
+  }
+
   async revokeCard(cardId: string, schoolId: string) {
     const card = await this.prisma.studentCard.findFirst({
       where: { id: cardId, student: { schoolId } },

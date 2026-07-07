@@ -1,4 +1,4 @@
-import { Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
@@ -18,6 +18,12 @@ export class CardsController {
   @Roles('DIRECTION')
   issue(@Param('studentId') studentId: string) {
     return this.cardsService.issueCard(studentId, this.tenant.schoolId);
+  }
+
+  @Get(':studentId')
+  @Roles('DIRECTION')
+  getActive(@Param('studentId') studentId: string) {
+    return this.cardsService.getActiveCard(studentId, this.tenant.schoolId);
   }
 
   @Post(':cardId/revoke')
