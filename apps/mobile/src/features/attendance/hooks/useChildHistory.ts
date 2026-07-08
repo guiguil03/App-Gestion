@@ -22,12 +22,16 @@ export type ChildDaySummary = {
 };
 
 /**
- * Historique jour par jour (30 derniers jours, hors aujourd'hui) pour un
- * enfant. Ne montre que les jours avec au moins un pointage — pas
- * d'inférence d'absence côté parent (nécessiterait un calendrier scolaire,
- * hors scope, cf. spec).
+ * Historique jour par jour (30 derniers jours) pour un enfant. Ne montre que
+ * les jours avec au moins un pointage — pas d'inférence d'absence côté
+ * parent (nécessiterait un calendrier scolaire, hors scope, cf. spec).
+ *
+ * `includeToday` par défaut à `false` : côté parent, la journée n'est pas
+ * encore terminée donc son statut resterait trompeur. Côté élève (son propre
+ * historique de self-scan), on veut au contraire voir son pointage du jour
+ * immédiatement — passer `true` dans ce cas.
  */
-export function useChildHistory(studentId: string | null): ChildDaySummary[] {
+export function useChildHistory(studentId: string | null, includeToday = false): ChildDaySummary[] {
   const database = useOptionalDatabase();
   const [days, setDays] = useState<ChildDaySummary[]>([]);
 
@@ -56,7 +60,7 @@ export function useChildHistory(studentId: string | null): ChildDaySummary[] {
         }
 
         const summaries = [...byDay.entries()]
-          .filter(([key]) => key !== todayKey)
+          .filter(([key]) => includeToday || key !== todayKey)
           .sort(([a], [b]) => (a < b ? 1 : -1))
           .map(([key, dayRecords]) => ({
             dateKey: key,
@@ -76,7 +80,7 @@ export function useChildHistory(studentId: string | null): ChildDaySummary[] {
       });
 
     return () => subscription.unsubscribe();
-  }, [database, studentId]);
+  }, [database, studentId, includeToday]);
 
   return days;
 }

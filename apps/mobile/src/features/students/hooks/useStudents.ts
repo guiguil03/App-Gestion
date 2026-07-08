@@ -31,3 +31,16 @@ export function useStudent(studentId: string | null) {
     enabled: !!studentId,
   });
 }
+
+async function fetchMyStudent(): Promise<StudentDetail> {
+  const { data } = await apiClient.get<StudentDetail>('/students/me');
+  return data;
+}
+
+/** Fiche d'identité de l'élève actuellement connecté (rôle ELEVE). */
+export function useMyStudent() {
+  return useQuery({
+    queryKey: ['students', 'me'],
+    queryFn: fetchMyStudent,
+  });
+}

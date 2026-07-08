@@ -27,6 +27,24 @@ export function useStudentCard(studentId: string | null) {
   });
 }
 
+async function fetchMyCard(): Promise<StudentCard | null> {
+  try {
+    const { data } = await apiClient.get<StudentCard>('/cards/me');
+    return data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Carte active de l'élève actuellement connecté (rôle ELEVE). */
+export function useMyStudentCard() {
+  return useQuery({
+    queryKey: ['students', 'card', 'me'],
+    queryFn: fetchMyCard,
+  });
+}
+
 /** Émet une nouvelle carte — révoque automatiquement l'ancienne côté backend (perte/vol/renouvellement). */
 export function useIssueStudentCard(studentId: string) {
   const queryClient = useQueryClient();

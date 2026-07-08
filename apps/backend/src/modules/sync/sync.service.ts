@@ -13,12 +13,40 @@ export type PullResult = {
   timestamp: number;
 };
 
-// Simplification assumée par WatermelonDB : que la ligne soit rangée dans
-// `created` ou `updated` ne change rien côté client (les deux déclenchent un
-// upsert), donc tout part dans `updated`. `deleted` n'est pas géré en v1 : les
-// tables de référence synchronisées ici ne sont pas supprimables.
-function bucket<T>(rows: T[]): WatermelonChanges<T> {
-  return { created: [], updated: rows, deleted: [] };
+// WatermelonDB attend que `created` contienne des lignes que l'appareil n'a
+// jamais vues, et `updated` des lignes qu'il a déjà et qui ont changé — s'y
+// tromper fait logger une "[Sync] ... This could be a serious bug" bruyante
+// à chaque pull (le fallback auto-corrige, mais pollue les logs). On classe
+// donc chaque ligne via `createdAt` vs `since` : créée après le dernier pull
+// de cet appareil ⇒ forcément nouvelle pour lui ⇒ `created` ; créée avant
+// mais renvoyée maintenant ⇒ c'est forcément parce qu'elle a été modifiée
+// depuis ⇒ `updated`.
+function splitBucket<T extends { createdAt: Date }, R>(
+  rows: T[],
+  since: Date,
+  toRow: (row: T) => R,
+): WatermelonChanges<R> {
+  const created: R[] = [];
+  const updated: R[] = [];
+  for (const row of rows) {
+    (row.createdAt.getTime() > since.getTime() ? created : updated).push(toRow(row));
+  }
+  return { created, updated, deleted: [] };
+}
+
+// Pour les tables où chaque ligne renvoyée n'est structurellement envoyée
+// qu'une seule fois à un appareil donné (filtrées par un timestamp qui ne
+// rebouge jamais après coup, ex. `receivedAt` d'un pointage) : toujours
+// nouvelle pour l'appareil qui la reçoit, donc toujours `created`.
+function createdOnlyBucket<T>(rows: T[]): WatermelonChanges<T> {
+  return { created: rows, updated: [], deleted: [] };
+}
+
+// Pour les tables toujours renvoyées en intégralité (non filtrées par
+// `since`, cf. commentaires plus bas) : tout est nouveau au tout premier
+// pull (`since` epoch 0), et déjà connu de l'appareil à chaque pull suivant.
+function firstSyncBucket<T>(rows: T[], since: Date): WatermelonChanges<T> {
+  return since.getTime() === 0 ? { created: rows, updated: [], deleted: [] } : { created: [], updated: rows, deleted: [] };
 }
 
 @Injectable()
@@ -64,14 +92,14 @@ export class SyncService {
     return {
       timestamp,
       changes: {
-        schools: bucket(school && school.updatedAt > since ? [toSchoolRow(school)] : []),
-        school_classes: bucket(classes.map(toSchoolClassRow)),
-        students: bucket(students.map(toStudentRow)),
-        revoked_cards: bucket(revokedCards.map((c) => ({ id: c.id, card_id: c.id }))),
-        assigned_classes: bucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow)),
-        attendance_records: bucket(attendanceRecords.map(toAttendanceRecordRow)),
-        teacher_signing_keys: bucket(signingKeys.map(toTeacherSigningKeyRow)),
-        parent_guardians: bucket(parentGuardians.map(toParentGuardianRow)),
+        schools: splitBucket(school && school.updatedAt > since ? [school] : [], since, toSchoolRow),
+        school_classes: splitBucket(classes, since, toSchoolClassRow),
+        students: splitBucket(students, since, toStudentRow),
+        revoked_cards: createdOnlyBucket(revokedCards.map((c) => ({ id: c.id, card_id: c.id }))),
+        assigned_classes: firstSyncBucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow), since),
+        attendance_records: createdOnlyBucket(attendanceRecords.map(toAttendanceRecordRow)),
+        teacher_signing_keys: splitBucket(signingKeys, since, toTeacherSigningKeyRow),
+        parent_guardians: splitBucket(parentGuardians, since, toParentGuardianRow),
       },
     };
   }

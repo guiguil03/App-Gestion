@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -17,10 +18,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
+import type { AuthenticatedUser } from '@/modules/auth/types';
 import { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
 import { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
 import { StudentsService } from '@/modules/students/students.service';
@@ -39,6 +42,16 @@ export class StudentsController {
   @Roles('DIRECTION')
   list(@Query('schoolClassId') schoolClassId?: string) {
     return this.studentsService.listStudents(this.tenant.schoolId, schoolClassId);
+  }
+
+  // Déclaré avant `:studentId` — sinon "me" serait capturé comme un id.
+  @Get('me')
+  @Roles('ELEVE')
+  getMe(@CurrentUser() user: AuthenticatedUser) {
+    if (!user.studentId) {
+      throw new ForbiddenException('Ce compte ne correspond à aucun élève');
+    }
+    return this.studentsService.getStudent(user.studentId, this.tenant.schoolId);
   }
 
   @Get(':studentId')

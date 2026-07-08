@@ -18,7 +18,7 @@ export default function StudentHistoriqueScreen() {
     getDecodedAccessToken().then((payload) => setStudentId(payload?.studentId ?? null));
   }, []);
 
-  const days = useChildHistory(studentId);
+  const days = useChildHistory(studentId, true);
 
   if (!database) {
     return (

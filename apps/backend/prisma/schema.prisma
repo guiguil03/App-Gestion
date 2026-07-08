@@ -97,6 +97,11 @@ model Student {
   attendances AttendanceRecord[]
   // Compte de connexion ELEVE de cet élève, s'il a été provisionné.
   account     User?
+  // Comptes PARENT autorisés à voir/modifier la fiche de cet élève — un
+  // même parent peut être lié à plusieurs enfants (fratrie), d'où une
+  // relation many-to-many plutôt qu'un simple studentId sur User comme pour
+  // ELEVE.
+  parentUsers User[]             @relation("parent_of")
 
   @@index([schoolId])
   @@index([schoolClassId])
@@ -217,6 +222,9 @@ model User {
   assignedClasses SchoolClass[]       @relation("class_assignments")
   openedSessions  AttendanceSession[]
   signingKey      TeacherSigningKey?
+  // Renseigné uniquement pour un compte PARENT : les enfants que ce compte
+  // est autorisé à consulter/modifier.
+  children        Student[]           @relation("parent_of")
 
   @@map("users")
 }

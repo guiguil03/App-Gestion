@@ -26,6 +26,15 @@ export default function StudentTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="carte"
+        options={{
+          title: 'Ma carte',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="historique"
         options={{
           title: 'Historique',

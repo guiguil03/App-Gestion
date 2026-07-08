@@ -63,15 +63,7 @@ export default function EleveCarteScreen() {
 
       <View style={styles.card}>
         <ThemedView type="backgroundElement" bordered style={styles.cardInner}>
-          {student.photoUrl ? (
-            <Image source={{ uri: resolveApiUrl(student.photoUrl) }} style={styles.photo} />
-          ) : (
-            <View style={[styles.photo, styles.photoPlaceholder, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText type="title" style={{ fontSize: 28 }}>
-                {student.firstName.charAt(0).toUpperCase()}
-              </ThemedText>
-            </View>
-          )}
+          {student.photoUrl && <Image source={{ uri: resolveApiUrl(student.photoUrl) }} style={styles.photo} />}
 
           <View style={styles.cardInfo}>
             <ThemedText type="smallBold">
@@ -83,7 +75,7 @@ export default function EleveCarteScreen() {
           </View>
 
           {cardResult ? (
-            <QRCodeView value={cardResult.qrCode} size={110} />
+            <QRCodeView value={cardResult.qrCode} size={200} />
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
               Aucune carte
@@ -196,10 +188,6 @@ const styles = StyleSheet.create({
     width: 96,
     height: 120,
     borderRadius: 8,
-  },
-  photoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   cardInfo: {
     alignItems: 'center',
