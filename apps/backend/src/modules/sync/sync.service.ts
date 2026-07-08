@@ -57,17 +57,29 @@ export class SyncService {
     private readonly attendanceSessions: AttendanceSessionsService,
   ) {}
 
-  async pull(schoolId: string, userId: string, lastPulledAt: number): Promise<PullResult> {
+  async pull(schoolId: string, user: AuthenticatedUser, lastPulledAt: number): Promise<PullResult> {
     const since = new Date(lastPulledAt);
     const timestamp = Date.now();
+    const userId = user.userId;
+
+    // Un compte PARENT ne doit voir que ses propres enfants (cf.
+    // User.children) — tous les autres rôles restent scopés à l'école
+    // entière comme avant (enseignants/surveillants/direction ont besoin de
+    // voir tous les élèves de leurs classes/de l'école).
+    const isParent = user.role === 'PARENT';
+    const childIds = isParent
+      ? (await this.prisma.user.findUnique({ where: { id: userId }, select: { children: { select: { id: true } } } }))
+          ?.children.map((c) => c.id) ?? []
+      : null;
+    const studentScope = childIds ? { id: { in: childIds } } : { schoolId };
 
     const [school, classes, students, revokedCards, currentUser, attendanceRecords, signingKeys, parentGuardians] =
       await Promise.all([
         this.prisma.school.findUnique({ where: { id: schoolId } }),
         this.prisma.schoolClass.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
-        this.prisma.student.findMany({ where: { schoolId, updatedAt: { gt: since } } }),
+        this.prisma.student.findMany({ where: { ...studentScope, updatedAt: { gt: since } } }),
         this.prisma.studentCard.findMany({
-          where: { revoked: true, student: { schoolId }, updatedAt: { gt: since } },
+          where: { revoked: true, student: studentScope, updatedAt: { gt: since } },
           select: { id: true },
         }),
         // Pas de filtrage par `since` : l'ensemble des classes assignées est petit,
@@ -80,13 +92,13 @@ export class SyncService {
         // métier) : un pointage vieux de 3 jours mais reçu il y a une minute doit
         // quand même remonter dans ce delta.
         this.prisma.attendanceRecord.findMany({
-          where: { student: { schoolId }, receivedAt: { gt: since } },
+          where: { student: studentScope, receivedAt: { gt: since } },
         }),
         // Pas de filtrage par `since` non plus : le répertoire des clés
         // enseignant de l'école est petit et nécessaire en entier pour
         // vérifier hors-ligne la signature de n'importe quel enseignant.
         this.prisma.teacherSigningKey.findMany({ where: { user: { schoolId } } }),
-        this.prisma.parentGuardian.findMany({ where: { student: { schoolId }, updatedAt: { gt: since } } }),
+        this.prisma.parentGuardian.findMany({ where: { student: studentScope, updatedAt: { gt: since } } }),
       ]);
 
     return {

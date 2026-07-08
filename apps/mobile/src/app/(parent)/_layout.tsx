@@ -43,6 +43,8 @@ export default function ParentTabsLayout() {
           ),
         }}
       />
+      {/* Ouvert depuis la liste Enfants — pas un onglet à part entière. */}
+      <Tabs.Screen name="enfant-detail" options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }

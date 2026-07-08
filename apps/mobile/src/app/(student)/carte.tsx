@@ -8,12 +8,13 @@ import { ThemedView } from '@/components/themed-view';
 import School from '@/db/models/School';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { resolveApiUrl } from '@/api/client';
+import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useMyStudentCard } from '@/features/students/hooks/useStudentCard';
 import { useMyStudent } from '@/features/students/hooks/useStudents';
 
 export default function StudentCarteScreen() {
   const database = useOptionalDatabase();
-  const { data: student, isLoading: studentLoading } = useMyStudent();
+  const { data: student, isLoading: studentLoading, isError, error } = useMyStudent();
   const { data: cardResult, isLoading: cardLoading } = useMyStudentCard();
   const [schoolName, setSchoolName] = useState<string | null>(null);
 
@@ -30,10 +31,10 @@ export default function StudentCarteScreen() {
     return <ThemedView style={styles.container} />;
   }
 
-  if (!student) {
+  if (isError || !student) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>Impossible de charger ta fiche.</ThemedText>
+        <ThemedText style={styles.message}>{isError ? getStudentErrorMessage(error) : 'Impossible de charger ta fiche.'}</ThemedText>
       </ThemedView>
     );
   }

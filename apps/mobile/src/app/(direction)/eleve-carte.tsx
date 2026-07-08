@@ -6,10 +6,12 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import QRCodeView from 'react-native-qrcode-svg';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { resolveApiUrl } from '@/api/client';
 import { useTheme } from '@/hooks/use-theme';
+import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
 import { useIssueStudentCard, useStudentCard } from '@/features/students/hooks/useStudentCard';
 import { buildQrCodeSvg } from '@/services/qrSvg';
@@ -17,13 +19,26 @@ import { buildQrCodeSvg } from '@/services/qrSvg';
 export default function EleveCarteScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: student, isLoading: studentLoading } = useStudent(id ?? null);
+  const { data: student, isLoading: studentLoading, isError, error } = useStudent(id ?? null);
   const { data: cardResult, isLoading: cardLoading } = useStudentCard(id ?? null);
   const { mutate: issueCard, isPending: isIssuing } = useIssueStudentCard(id as string);
   const [isExporting, setIsExporting] = useState(false);
 
+  if (isError) {
+    return (
+      <ThemedView style={styles.container}>
+        <BackButton />
+        <ThemedText style={[styles.message, { color: theme.danger }]}>{getStudentErrorMessage(error)}</ThemedText>
+      </ThemedView>
+    );
+  }
+
   if (studentLoading || cardLoading || !student) {
-    return <ThemedView style={styles.container} />;
+    return (
+      <ThemedView style={styles.container}>
+        <BackButton />
+      </ThemedView>
+    );
   }
 
   async function handleExport() {
@@ -57,6 +72,7 @@ export default function EleveCarteScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <BackButton />
       <ThemedText type="title" style={styles.title}>
         Carte élève
       </ThemedText>
@@ -170,6 +186,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     gap: 16,
+  },
+  message: {
+    textAlign: 'center',
+    margin: 24,
   },
   title: {
     fontSize: 24,

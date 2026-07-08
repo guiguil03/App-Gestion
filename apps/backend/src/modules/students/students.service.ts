@@ -31,6 +31,14 @@ export type ProvisionedAccount = {
   password: string;
 };
 
+export type ProvisionedParentAccount = {
+  username: string;
+  // `null` quand un compte existant a été réutilisé (fratrie) : le mot de
+  // passe existant n'est jamais récupérable, seul un nouveau compte en génère un.
+  password: string | null;
+  reused: boolean;
+};
+
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -71,8 +79,64 @@ export class StudentsService {
     return { username, password };
   }
 
+  /** Empêche un parent de consulter/modifier un enfant qui n'est pas le sien. */
+  async assertParentOwnsStudent(userId: string, studentId: string) {
+    const link = await this.prisma.user.findFirst({
+      where: { id: userId, children: { some: { id: studentId } } },
+    });
+    if (!link) {
+      throw new ForbiddenException("Cet élève n'est pas rattaché à ce compte parent");
+    }
+  }
+
+  /**
+   * Crée (ou régénère) le compte de connexion PARENT lié à un enfant. Si un
+   * compte PARENT existe déjà dans l'école pour ce même numéro de téléphone
+   * (cas d'une fratrie), on relie simplement ce nouvel enfant à ce compte
+   * existant plutôt que d'en créer un second.
+   */
+  async provisionParentAccount(
+    studentId: string,
+    parentGuardianId: string,
+    schoolId: string,
+  ): Promise<ProvisionedParentAccount> {
+    await this.assertBelongsToSchool(studentId, schoolId);
+    const parentGuardian = await this.prisma.parentGuardian.findFirst({
+      where: { id: parentGuardianId, studentId },
+    });
+    if (!parentGuardian) {
+      throw new NotFoundException('Parent introuvable pour cet élève');
+    }
+
+    const existingAccount = await this.prisma.user.findFirst({
+      where: {
+        role: 'PARENT',
+        schoolId,
+        children: { some: { parents: { some: { phoneNumber: parentGuardian.phoneNumber } } } },
+      },
+    });
+
+    if (existingAccount) {
+      await this.prisma.user.update({
+        where: { id: existingAccount.id },
+        data: { children: { connect: { id: studentId } } },
+      });
+      return { username: existingAccount.username, password: null, reused: true };
+    }
+
+    const username = await this.generateUniqueUsername(parentGuardian.fullName, '');
+    const password = generatePassword();
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await this.prisma.user.create({
+      data: { username, passwordHash, role: 'PARENT', schoolId, children: { connect: { id: studentId } } },
+    });
+
+    return { username, password, reused: false };
+  }
+
   private async generateUniqueUsername(firstName: string, lastName: string): Promise<string> {
-    const base = `${normalize(firstName)}.${normalize(lastName)}`;
+    const base = lastName ? `${normalize(firstName)}.${normalize(lastName)}` : normalize(firstName);
     let candidate = base;
     let suffix = 1;
     while (await this.prisma.user.findUnique({ where: { username: candidate } })) {

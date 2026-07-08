@@ -1,7 +1,6 @@
-// apps/mobile/src/app/(direction)/eleve-detail.tsx
-import { useState } from 'react';
+// apps/mobile/src/app/(parent)/enfant-detail.tsx
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,20 +11,14 @@ import { useTheme } from '@/hooks/use-theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
-import {
-  useProvisionStudentAccount,
-  useUpdateStudent,
-  useUploadStudentPhoto,
-} from '@/features/students/hooks/useStudentMutations';
+import { useUpdateStudent, useUploadStudentPhoto } from '@/features/students/hooks/useStudentMutations';
 
-export default function EleveDetailScreen() {
+export default function EnfantDetailScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: student, isLoading, isError, error } = useStudent(id ?? null);
   const { mutate: updateStudent, isPending: isUpdating } = useUpdateStudent(id as string);
   const { mutate: uploadPhoto, isPending: isUploadingPhoto } = useUploadStudentPhoto(id as string);
-  const { mutate: provisionAccount, isPending: isProvisioning } = useProvisionStudentAccount(id as string);
-  const [accountInfo, setAccountInfo] = useState<{ username: string; password: string } | null>(null);
 
   async function handlePickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -44,13 +37,6 @@ export default function EleveDetailScreen() {
       uri: asset.uri,
       fileName: asset.fileName ?? 'photo.jpg',
       mimeType: asset.mimeType ?? 'image/jpeg',
-    });
-  }
-
-  function handleProvisionAccount() {
-    provisionAccount(undefined, {
-      onSuccess: (account) => setAccountInfo(account),
-      onError: () => Alert.alert('Erreur', "Impossible de générer le compte."),
     });
   }
 
@@ -88,33 +74,15 @@ export default function EleveDetailScreen() {
       </View>
 
       <View style={styles.actionsRow}>
-        <ActionButton
-          icon="image-outline"
-          label={isUploadingPhoto ? 'Envoi…' : 'Photo'}
+        <Pressable
+          style={[styles.actionButton, { backgroundColor: theme.backgroundElement }, isUploadingPhoto && styles.actionDisabled]}
           onPress={handlePickPhoto}
           disabled={isUploadingPhoto}
-        />
-        <ActionButton
-          icon="qr-code-outline"
-          label="Carte"
-          onPress={() => router.push({ pathname: '/(direction)/eleve-carte', params: { id: student.id } })}
-        />
-        <ActionButton
-          icon="key-outline"
-          label={isProvisioning ? '…' : 'Compte'}
-          onPress={handleProvisionAccount}
-          disabled={isProvisioning}
-        />
+        >
+          <Ionicons name="image-outline" size={20} color={theme.primary} />
+          <ThemedText type="small">{isUploadingPhoto ? 'Envoi…' : 'Changer la photo'}</ThemedText>
+        </Pressable>
       </View>
-
-      {accountInfo && (
-        <ThemedView type="backgroundElement" bordered style={styles.accountBox}>
-          <ThemedText type="smallBold">Identifiants générés (à noter, non récupérables ensuite) :</ThemedText>
-          <ThemedText type="small">
-            {accountInfo.username} / {accountInfo.password}
-          </ThemedText>
-        </ThemedView>
-      )}
 
       <StudentForm
         submitLabel="Enregistrer"
@@ -142,30 +110,6 @@ export default function EleveDetailScreen() {
   );
 }
 
-function ActionButton({
-  icon,
-  label,
-  onPress,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      style={[styles.actionButton, { backgroundColor: theme.backgroundElement }, disabled && styles.actionDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <Ionicons name={icon} size={20} color={theme.primary} />
-      <ThemedText type="small">{label}</ThemedText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -190,18 +134,13 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     paddingVertical: 12,
     borderRadius: 12,
   },
   actionDisabled: {
     opacity: 0.6,
-  },
-  accountBox: {
-    marginHorizontal: 24,
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
   },
 });

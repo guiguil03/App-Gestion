@@ -55,8 +55,11 @@ export class StudentsController {
   }
 
   @Get(':studentId')
-  @Roles('DIRECTION')
-  get(@Param('studentId') studentId: string) {
+  @Roles('DIRECTION', 'PARENT')
+  async get(@Param('studentId') studentId: string, @CurrentUser() user: AuthenticatedUser) {
+    if (user.role === 'PARENT') {
+      await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
+    }
     return this.studentsService.getStudent(studentId, this.tenant.schoolId);
   }
 
@@ -67,13 +70,20 @@ export class StudentsController {
   }
 
   @Patch(':studentId')
-  @Roles('DIRECTION')
-  update(@Param('studentId') studentId: string, @Body() dto: UpdateStudentDto) {
+  @Roles('DIRECTION', 'PARENT')
+  async update(
+    @Param('studentId') studentId: string,
+    @Body() dto: UpdateStudentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (user.role === 'PARENT') {
+      await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
+    }
     return this.studentsService.updateStudent(studentId, dto, this.tenant.schoolId);
   }
 
   @Post(':studentId/photo')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'PARENT')
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: diskStorage({
@@ -90,7 +100,14 @@ export class StudentsController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  async uploadPhoto(@Param('studentId') studentId: string, @UploadedFile() file?: Express.Multer.File) {
+  async uploadPhoto(
+    @Param('studentId') studentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (user.role === 'PARENT') {
+      await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
+    }
     if (!file) {
       throw new BadRequestException('Photo manquante');
     }
@@ -103,5 +120,16 @@ export class StudentsController {
   @Roles('DIRECTION')
   provisionAccount(@Param('studentId') studentId: string) {
     return this.studentsService.provisionAccount(studentId, this.tenant.schoolId);
+  }
+
+  // Retourne le mot de passe en clair une seule fois (idem provisionAccount)
+  // — `password: null` si un compte parent existant a été réutilisé (fratrie).
+  @Post(':studentId/parents/:parentGuardianId/account')
+  @Roles('DIRECTION')
+  provisionParentAccount(
+    @Param('studentId') studentId: string,
+    @Param('parentGuardianId') parentGuardianId: string,
+  ) {
+    return this.studentsService.provisionParentAccount(studentId, parentGuardianId, this.tenant.schoolId);
   }
 }

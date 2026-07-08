@@ -2,6 +2,7 @@
 import { StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
@@ -21,6 +22,7 @@ export default function EleveNouveauScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <BackButton />
       <ThemedText type="title" style={styles.title}>
         Nouvel élève
       </ThemedText>
