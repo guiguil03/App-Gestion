@@ -5,12 +5,17 @@ import { QueryClient } from '@tanstack/react-query';
 import { clearAuthTokens, getAccessToken, getRefreshToken, saveAuthTokens } from '@/services/secureStorage';
 
 // Overridden per environment (dev/staging/prod) via EXPO_PUBLIC_API_URL.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10_000,
 });
+
+/** Résout un chemin relatif renvoyé par le backend (ex. photo élève `/uploads/...`) en URL absolue. */
+export function resolveApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
 
 apiClient.interceptors.request.use(async (config) => {
   const token = await getAccessToken();

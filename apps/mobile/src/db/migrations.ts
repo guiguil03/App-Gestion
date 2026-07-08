@@ -20,5 +20,41 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: 'attendance_records',
+          columns: [{ name: 'session_id', type: 'string', isOptional: true, isIndexed: true }],
+        }),
+        createTable({
+          name: 'attendance_sessions',
+          columns: [
+            { name: 'school_class_id', type: 'string', isIndexed: true },
+            { name: 'teacher_id', type: 'string', isIndexed: true },
+            { name: 'opened_at', type: 'number' },
+            { name: 'expires_at', type: 'number' },
+            { name: 'closed_at', type: 'number', isOptional: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+          ],
+        }),
+        createTable({
+          name: 'teacher_signing_keys',
+          columns: [
+            { name: 'user_id', type: 'string', isIndexed: true },
+            { name: 'public_key', type: 'string' },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: 'parent_guardians',
+          columns: [{ name: 'address', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
   ],
 });

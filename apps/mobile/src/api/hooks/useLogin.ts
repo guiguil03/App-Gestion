@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { saveAuthTokens } from '@/services/secureStorage';
 
-export type UserRole = 'ADMIN' | 'DIRECTION' | 'ENSEIGNANT' | 'SURVEILLANT' | 'PARENT';
+export type UserRole = 'ADMIN' | 'DIRECTION' | 'ENSEIGNANT' | 'SURVEILLANT' | 'PARENT' | 'ELEVE';
 
 export type LoginCredentials = {
   username: string;
@@ -16,6 +16,7 @@ export type LoginResponse = {
   refreshToken: string;
   role: UserRole;
   schoolId: string | null;
+  studentId: string | null;
 };
 
 async function login(credentials: LoginCredentials): Promise<LoginResponse> {

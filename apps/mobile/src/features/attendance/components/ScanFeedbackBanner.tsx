@@ -10,7 +10,9 @@ export type ScanFeedback =
   | { status: 'revoked' }
   | { status: 'invalide' }
   | { status: 'falsifiee' }
-  | { status: 'erreur' };
+  | { status: 'erreur' }
+  | { status: 'expiree' }
+  | { status: 'deja_scanne' };
 
 const NEUTRAL_COLOR = '#4B5563';
 
@@ -26,6 +28,10 @@ function labelFor(feedback: ScanFeedback): string {
       return 'Carte non authentique — refuser';
     case 'erreur':
       return "Erreur d'enregistrement, réessayez";
+    case 'expiree':
+      return 'Session expirée — demande un nouveau QR';
+    case 'deja_scanne':
+      return 'Présence déjà enregistrée pour cette session';
   }
 }
 
@@ -40,6 +46,10 @@ function iconFor(feedback: ScanFeedback): keyof typeof Ionicons.glyphMap {
       return 'help-circle';
     case 'erreur':
       return 'alert-circle';
+    case 'expiree':
+      return 'time-outline';
+    case 'deja_scanne':
+      return 'checkmark-done-circle';
   }
 }
 
@@ -70,6 +80,10 @@ function colorFor(feedback: ScanFeedback, theme: { success: string; warning: str
       return NEUTRAL_COLOR;
     case 'erreur':
       return theme.danger;
+    case 'expiree':
+      return theme.warning;
+    case 'deja_scanne':
+      return NEUTRAL_COLOR;
   }
 }
 

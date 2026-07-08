@@ -13,6 +13,7 @@ enum UserRole {
   ENSEIGNANT
   SURVEILLANT
   PARENT
+  ELEVE
 }
 
 enum NotificationChannel {
@@ -49,9 +50,10 @@ model School {
   updatedAt                  DateTime  @updatedAt @map("updated_at")
   deletedAt                  DateTime? @map("deleted_at")
 
-  classes  SchoolClass[]
-  students Student[]
-  users    User[]
+  classes            SchoolClass[]
+  students           Student[]
+  users              User[]
+  attendanceSessions AttendanceSession[]
 
   @@map("schools")
 }
@@ -65,9 +67,10 @@ model SchoolClass {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  school           School    @relation(fields: [schoolId], references: [id])
-  students         Student[]
-  assignedTeachers User[]    @relation("class_assignments")
+  school             School              @relation(fields: [schoolId], references: [id])
+  students           Student[]
+  assignedTeachers   User[]              @relation("class_assignments")
+  attendanceSessions AttendanceSession[]
 
   @@index([schoolId])
   @@map("school_classes")
@@ -92,6 +95,13 @@ model Student {
   parents     ParentGuardian[]
   cards       StudentCard[]
   attendances AttendanceRecord[]
+  // Compte de connexion ELEVE de cet élève, s'il a été provisionné.
+  account     User?
+  // Comptes PARENT autorisés à voir/modifier la fiche de cet élève — un
+  // même parent peut être lié à plusieurs enfants (fratrie), d'où une
+  // relation many-to-many plutôt qu'un simple studentId sur User comme pour
+  // ELEVE.
+  parentUsers User[]             @relation("parent_of")
 
   @@index([schoolId])
   @@index([schoolClassId])
@@ -105,6 +115,7 @@ model ParentGuardian {
   relationship         String
   phoneNumber          String              @map("phone_number")
   secondaryPhoneNumber String?             @map("secondary_phone_number")
+  address              String?
   notificationChannel  NotificationChannel @default(BOTH) @map("notification_channel")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
@@ -138,12 +149,60 @@ model AttendanceRecord {
   recordedAt DateTime            @map("recorded_at")
   isLate     Boolean             @map("is_late")
   receivedAt DateTime            @default(now()) @map("received_at")
+  // Non-null uniquement pour un pointage auto-scanné par l'élève via le QR
+  // de session (cf. AttendanceSession) — null pour un scan de carte classique.
+  sessionId  String?             @map("session_id")
 
-  student Student @relation(fields: [studentId], references: [id])
+  student Student            @relation(fields: [studentId], references: [id])
+  session AttendanceSession? @relation(fields: [sessionId], references: [id])
 
+  // Un élève ne peut pointer qu'une fois par session (des sessionId null ne
+  // se contraignent pas entre eux sous Postgres, donc les scans de carte
+  // classiques, où sessionId est toujours null, ne sont pas concernés).
+  @@unique([sessionId, studentId])
   @@index([studentId])
   @@index([recordedAt])
   @@map("attendance_records")
+}
+
+// Session de présence ouverte par un enseignant pour sa classe du moment :
+// le QR affiché encode ce payload signé par la clé de l'appareil enseignant
+// (voir TeacherSigningKey) et est scanné par l'élève sur son propre appareil,
+// à l'inverse du flux carte (enseignant scanne l'élève).
+model AttendanceSession {
+  id            String    @id // généré côté mobile (WatermelonDB), réutilisé tel quel
+  schoolId      String    @map("school_id")
+  schoolClassId String    @map("school_class_id")
+  teacherId     String    @map("teacher_id")
+  openedAt      DateTime  @map("opened_at")
+  expiresAt     DateTime  @map("expires_at")
+  closedAt      DateTime? @map("closed_at")
+  receivedAt    DateTime  @default(now()) @map("received_at")
+
+  school      School             @relation(fields: [schoolId], references: [id])
+  schoolClass SchoolClass        @relation(fields: [schoolClassId], references: [id])
+  teacher     User               @relation(fields: [teacherId], references: [id])
+  records     AttendanceRecord[]
+
+  @@index([schoolId])
+  @@index([schoolClassId])
+  @@map("attendance_sessions")
+}
+
+// Clé publique Ed25519 générée par l'appareil enseignant lui-même (la privée
+// ne quitte jamais l'appareil, symétrique à School.cardSigningPrivateKey qui
+// ne quitte jamais le backend). Permet aux appareils élèves de vérifier hors
+// ligne la signature d'un QR de session, une fois cette clé synchronisée.
+model TeacherSigningKey {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  publicKey String   @map("public_key") // hex Ed25519
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("teacher_signing_keys")
 }
 
 model User {
@@ -152,11 +211,20 @@ model User {
   passwordHash String   @map("password_hash")
   role         UserRole
   schoolId     String?  @map("school_id")
+  // Renseigné uniquement pour un compte ELEVE : relie le compte de connexion
+  // à sa fiche élève.
+  studentId    String?  @unique @map("student_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  school          School?       @relation(fields: [schoolId], references: [id])
-  assignedClasses SchoolClass[] @relation("class_assignments")
+  school          School?             @relation(fields: [schoolId], references: [id])
+  student         Student?            @relation(fields: [studentId], references: [id])
+  assignedClasses SchoolClass[]       @relation("class_assignments")
+  openedSessions  AttendanceSession[]
+  signingKey      TeacherSigningKey?
+  // Renseigné uniquement pour un compte PARENT : les enfants que ce compte
+  // est autorisé à consulter/modifier.
+  children        Student[]           @relation("parent_of")
 
   @@map("users")
 }

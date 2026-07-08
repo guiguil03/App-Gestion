@@ -17,7 +17,7 @@ export class SyncController {
 
   @Get('pull')
   pull(@CurrentUser() user: AuthenticatedUser, @Query('lastPulledAt') lastPulledAt?: string) {
-    return this.syncService.pull(this.tenant.schoolId, user.userId, lastPulledAt ? Number(lastPulledAt) : 0);
+    return this.syncService.pull(this.tenant.schoolId, user, lastPulledAt ? Number(lastPulledAt) : 0);
   }
 
   @Post('push')

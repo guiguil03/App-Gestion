@@ -1,5 +1,7 @@
 // apps/mobile/src/app/(parent)/children.tsx
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -33,12 +35,17 @@ export default function ChildrenScreen() {
         keyExtractor={(student) => student.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" bordered style={styles.row}>
-            <ThemedView style={[styles.avatar, { backgroundColor: theme.primary }]}>
-              <ThemedText style={styles.avatarLabel}>{item.fullName.charAt(0).toUpperCase()}</ThemedText>
+          <Pressable onPress={() => router.push({ pathname: '/(parent)/enfant-detail', params: { id: item.id } })}>
+            <ThemedView type="backgroundElement" bordered style={styles.row}>
+              <ThemedView style={[styles.avatar, { backgroundColor: theme.primary }]}>
+                <ThemedText style={styles.avatarLabel}>{item.fullName.charAt(0).toUpperCase()}</ThemedText>
+              </ThemedView>
+              <ThemedText type="smallBold" style={styles.rowName}>
+                {item.fullName}
+              </ThemedText>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </ThemedView>
-            <ThemedText type="smallBold">{item.fullName}</ThemedText>
-          </ThemedView>
+          </Pressable>
         )}
         ListEmptyComponent={
           <ThemedText themeColor="textSecondary">Aucun enfant synchronisé pour le moment.</ThemedText>
@@ -79,6 +86,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 15,
+  },
+  rowName: {
+    flex: 1,
   },
   message: {
     textAlign: 'center',

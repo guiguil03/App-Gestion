@@ -4,9 +4,13 @@ import { AttendanceDirection, Checkpoint, NotificationChannel, PrismaClient } fr
 import * as bcrypt from 'bcryptjs';
 
 import { CardSigningService } from '../src/modules/cards/card-signing.service';
+import { StudentsService } from '../src/modules/students/students.service';
 
 const prisma = new PrismaClient();
 const signing = new CardSigningService();
+// `StudentsService` n'a besoin que de l'API PrismaClient (pas des hooks de
+// cycle de vie Nest ajoutés par PrismaService) : le cast est sûr ici.
+const students = new StudentsService(prisma as never);
 
 const HISTORY_DAYS = 14;
 const STUDENTS_PER_CLASS = 7;
@@ -166,6 +170,15 @@ async function main() {
       if (!firstQr) {
         firstQr = signing.toQrString(payloadBase64, signature);
         console.log(`QR pour ${nameData.firstName} ${nameData.lastName}: ${firstQr}`);
+      }
+
+      // Comptes ELEVE de test (les 2 premiers élèves seulement, pour tester
+      // le nouveau flux de scan de session sans polluer la sortie du seed).
+      if (studentCount <= 2) {
+        const account = await students.provisionAccount(student.id, school.id);
+        console.log(
+          `Compte élève pour ${nameData.firstName} ${nameData.lastName}: ${account.username} / ${account.password}`,
+        );
       }
 
       // Historique de présence fictif sur les 14 derniers jours : ~85% présent

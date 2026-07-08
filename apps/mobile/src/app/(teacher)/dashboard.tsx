@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -7,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
-import { useAssignedClasses } from '@/features/classes/hooks/useAssignedClasses';
+import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassAttendanceSummary } from '@/features/attendance/hooks/useClassAttendanceSummary';
 import { useClassAttendanceTrend } from '@/features/attendance/hooks/useClassAttendanceTrend';
 import { AttendanceTrendChart } from '@/features/attendance/components/AttendanceTrendChart';
@@ -21,19 +20,7 @@ const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', {
 export default function TeacherDashboardScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
-  const { classes, isLoading: classesLoading } = useAssignedClasses();
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (classes.length === 0) {
-      if (selectedClassId !== null) setSelectedClassId(null);
-      return;
-    }
-    const stillAssigned = classes.some((schoolClass) => schoolClass.id === selectedClassId);
-    if (!stillAssigned) {
-      setSelectedClassId(classes[0].id);
-    }
-  }, [classes, selectedClassId]);
+  const { classes, classesLoading, selectedClassId, setSelectedClassId } = useSelectedClass();
 
   const summary = useClassAttendanceSummary(selectedClassId);
   const trend = useClassAttendanceTrend(selectedClassId);

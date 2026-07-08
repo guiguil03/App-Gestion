@@ -1,5 +1,5 @@
 // apps/mobile/src/app/(teacher)/historique.tsx
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -8,26 +8,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
-import { useAssignedClasses } from '@/features/classes/hooks/useAssignedClasses';
+import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassHistory } from '@/features/attendance/hooks/useClassHistory';
 
 export default function HistoriqueScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
-  const { classes, isLoading: classesLoading } = useAssignedClasses();
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const { classes, classesLoading, selectedClassId, setSelectedClassId } = useSelectedClass();
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (classes.length === 0) {
-      if (selectedClassId !== null) setSelectedClassId(null);
-      return;
-    }
-    const stillAssigned = classes.some((schoolClass) => schoolClass.id === selectedClassId);
-    if (!stillAssigned) {
-      setSelectedClassId(classes[0].id);
-    }
-  }, [classes, selectedClassId]);
 
   const days = useClassHistory(selectedClassId);
 
