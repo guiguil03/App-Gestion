@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardX, GraduationCap, LayoutDashboard, LogOut, UserCircle, Users } from 'lucide-react';
+import { ClipboardX, GraduationCap, LayoutDashboard, LogOut, School, UserCircle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 
 const NAV_LINKS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Classes', href: '/dashboard/classes', icon: GraduationCap },
+  { label: 'Élèves', href: '/dashboard/eleves', icon: GraduationCap },
+  { label: 'Classes', href: '/dashboard/classes', icon: School },
   { label: 'Personnel', href: '/dashboard/personnel', icon: Users },
   { label: 'Absences', href: '/dashboard/absences', icon: ClipboardX },
   { label: 'Profil', href: '/dashboard/profil', icon: UserCircle },

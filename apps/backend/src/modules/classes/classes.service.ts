@@ -11,7 +11,7 @@ export class ClassesService {
   list(schoolId: string) {
     return this.prisma.schoolClass.findMany({
       where: { schoolId, deletedAt: null },
-      include: { assignedTeachers: true },
+      include: { assignedTeachers: { select: { id: true, username: true, role: true } } },
       orderBy: { name: 'asc' },
     });
   }

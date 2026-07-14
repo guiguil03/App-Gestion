@@ -78,6 +78,9 @@ function randomAttendanceTimestamp(dayOffset: number, isLate: boolean): Date {
 async function resetDatabase() {
   // Ordre respectant les contraintes de clé étrangère.
   await prisma.attendanceRecord.deleteMany();
+  await prisma.attendanceSession.deleteMany();
+  await prisma.teacherSigningKey.deleteMany();
+  await prisma.absence.deleteMany();
   await prisma.studentCard.deleteMany();
   await prisma.parentGuardian.deleteMany();
   await prisma.student.deleteMany();

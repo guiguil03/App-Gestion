@@ -37,7 +37,11 @@ describe('StaffService.disable', () => {
 
     await service.disable('user-1', 'school-1');
 
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { disabledAt: expect.any(Date) } });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { disabledAt: expect.any(Date) },
+      select: { id: true, username: true, role: true, disabledAt: true },
+    });
   });
 
   it('rejects disabling an account outside the current school', async () => {

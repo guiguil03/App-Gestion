@@ -29,7 +29,13 @@ export class StaffService {
   list(schoolId: string) {
     return this.prisma.user.findMany({
       where: { schoolId, role: { in: ['ENSEIGNANT', 'SURVEILLANT'] } },
-      include: { assignedClasses: true },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        disabledAt: true,
+        assignedClasses: { select: { id: true, name: true } },
+      },
       orderBy: { username: 'asc' },
     });
   }
@@ -37,6 +43,10 @@ export class StaffService {
   async disable(userId: string, schoolId: string) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, schoolId } });
     if (!user) throw new NotFoundException('Compte introuvable');
-    return this.prisma.user.update({ where: { id: userId }, data: { disabledAt: new Date() } });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { disabledAt: new Date() },
+      select: { id: true, username: true, role: true, disabledAt: true },
+    });
   }
 }
