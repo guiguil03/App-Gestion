@@ -95,6 +95,7 @@ model Student {
   parents     ParentGuardian[]
   cards       StudentCard[]
   attendances AttendanceRecord[]
+  absences    Absence[]
   // Compte de connexion ELEVE de cet élève, s'il a été provisionné.
   account     User?
   // Comptes PARENT autorisés à voir/modifier la fiche de cet élève — un
@@ -124,6 +125,26 @@ model ParentGuardian {
 
   @@index([studentId])
   @@map("parent_guardians")
+}
+
+// Un élève sans aucun pointage PORTAIL avant l'heure de référence + tolérance
+// de son école est marqué absent automatiquement (cf. AbsenceDetectionJob).
+// Le parent peut ensuite justifier l'absence a posteriori (3.5 du cahier des
+// charges).
+model Absence {
+  id                   String    @id @default(uuid())
+  studentId             String    @map("student_id")
+  date                  String // "YYYY-MM-DD"
+  justified             Boolean   @default(false)
+  justificationReason   String?   @map("justification_reason")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, date])
+  @@index([studentId])
+  @@map("absences")
 }
 
 model StudentCard {
@@ -214,6 +235,13 @@ model User {
   // Renseigné uniquement pour un compte ELEVE : relie le compte de connexion
   // à sa fiche élève.
   studentId    String?  @unique @map("student_id")
+  // Jeton Expo Push (device), renseigné dès l'app ouverte et connectée —
+  // permet l'envoi de notifications push (arrivée, absence).
+  expoPushToken String? @map("expo_push_token")
+  // Désactivation soft d'un compte staff (ENSEIGNANT/SURVEILLANT) par la
+  // Direction — rejeté par JwtAuthGuard dès la prochaine requête, pas
+  // seulement au prochain login.
+  disabledAt    DateTime? @map("disabled_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

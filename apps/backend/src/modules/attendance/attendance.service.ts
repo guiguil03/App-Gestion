@@ -4,6 +4,7 @@ import { Checkpoint, AttendanceDirection, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
+import { dateKey } from '@/modules/absences/date-key';
 import {
   ATTENDANCE_RECORDED_EVENT,
   AttendanceRecordedEvent,
@@ -93,6 +94,16 @@ export class AttendanceService {
     }
 
     this.logger.log(`Pointage ${record.id} enregistré pour l'élève ${student.id} (retard=${isLate})`);
+
+    // Un pointage PORTAIL/ENTREE (même tardif) annule une absence déjà
+    // marquée par AbsenceDetectionJob pour ce jour — un retard n'est pas une
+    // absence.
+    if (
+      toCheckpoint(raw.checkpoint) === Checkpoint.PORTAIL &&
+      toDirection(raw.direction) === AttendanceDirection.ENTREE
+    ) {
+      await this.prisma.absence.deleteMany({ where: { studentId: student.id, date: dateKey(recordedAt) } });
+    }
 
     this.events.emit(
       ATTENDANCE_RECORDED_EVENT,

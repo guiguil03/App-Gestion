@@ -1,30 +1,10 @@
-import { randomInt } from 'node:crypto';
-
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
+import { generatePassword, generateUniqueUsername } from '@/common/accounts/generate-credentials';
 import { PrismaService } from '@/database/prisma.service';
 import type { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
 import type { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
-
-// Sans caractères ambigus à la lecture/saisie (0/O, 1/l/I).
-const PASSWORD_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-
-function normalize(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function generatePassword(length = 8): string {
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)];
-  }
-  return password;
-}
 
 export type ProvisionedAccount = {
   username: string;
@@ -66,7 +46,7 @@ export class StudentsService {
     // Régénération (perte du mot de passe) : on garde l'identifiant existant,
     // seul le mot de passe change.
     const existing = await this.prisma.user.findUnique({ where: { studentId } });
-    const username = existing?.username ?? (await this.generateUniqueUsername(student.firstName, student.lastName));
+    const username = existing?.username ?? (await generateUniqueUsername(this.prisma, student.firstName, student.lastName));
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -124,7 +104,7 @@ export class StudentsService {
       return { username: existingAccount.username, password: null, reused: true };
     }
 
-    const username = await this.generateUniqueUsername(parentGuardian.fullName, '');
+    const username = await generateUniqueUsername(this.prisma, parentGuardian.fullName, '');
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -133,17 +113,6 @@ export class StudentsService {
     });
 
     return { username, password, reused: false };
-  }
-
-  private async generateUniqueUsername(firstName: string, lastName: string): Promise<string> {
-    const base = lastName ? `${normalize(firstName)}.${normalize(lastName)}` : normalize(firstName);
-    let candidate = base;
-    let suffix = 1;
-    while (await this.prisma.user.findUnique({ where: { username: candidate } })) {
-      suffix++;
-      candidate = `${base}${suffix}`;
-    }
-    return candidate;
   }
 
   async listStudents(schoolId: string, schoolClassId?: string) {
