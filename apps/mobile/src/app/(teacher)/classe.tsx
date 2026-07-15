@@ -1,8 +1,9 @@
 // apps/mobile/src/app/(teacher)/classe.tsx
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { resolveApiUrl } from '@/api/client';
 import { ChipSelector } from '@/components/chip-selector';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -83,9 +84,13 @@ export default function ClasseScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <ThemedView type="backgroundElement" bordered style={styles.row}>
-            <ThemedView style={[styles.avatar, { backgroundColor: theme[STATUS_CONFIG[item.status].colorToken] }]}>
-              <ThemedText style={styles.avatarLabel}>{item.studentName.charAt(0).toUpperCase()}</ThemedText>
-            </ThemedView>
+            {item.photoUrl ? (
+              <Image source={{ uri: resolveApiUrl(item.photoUrl) }} style={styles.avatarPhoto} />
+            ) : (
+              <ThemedView style={[styles.avatar, { backgroundColor: theme[STATUS_CONFIG[item.status].colorToken] }]}>
+                <ThemedText style={styles.avatarLabel}>{item.studentName.charAt(0).toUpperCase()}</ThemedText>
+              </ThemedView>
+            )}
             <ThemedText type="smallBold" style={styles.rowName}>
               {item.studentName}
             </ThemedText>
@@ -159,6 +164,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarPhoto: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarLabel: {
     color: '#ffffff',

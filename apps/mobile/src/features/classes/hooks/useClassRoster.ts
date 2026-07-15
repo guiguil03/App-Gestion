@@ -12,6 +12,7 @@ export type RosterEntry = {
   studentId: string;
   studentName: string;
   status: RosterStatus;
+  photoUrl: string | null;
 };
 
 /** Élèves d'une classe avec leur statut de présence du jour. */
@@ -43,6 +44,7 @@ export function useClassRoster(classId: string | null): RosterEntry[] {
         .map((student) => ({
           studentId: student.id,
           studentName: student.fullName,
+          photoUrl: student.photoUrl ?? null,
           status: (lateStudentIds.has(student.id)
             ? 'late'
             : presentStudentIds.has(student.id)

@@ -210,29 +210,43 @@ function ElevesPageContent() {
           const fullName = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
           return (
             <div key={student.id} className="p-4 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">{fullName}</p>
-                <p className="text-xs text-zinc-500">
-                  {student.schoolClass.name} · {student.sex === 'M' ? 'Masculin' : 'Féminin'} · {student.dateOfBirth}
-                </p>
-                {student.parents.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {student.parents.map((parent) => (
-                      <div key={parent.id} className="flex items-center gap-2 text-xs text-zinc-600">
-                        <span>
-                          {parent.fullName} ({parent.relationship}) — {parent.phoneNumber}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void handleProvisionParent(student.id, parent.id, parent.fullName)}
-                          className="text-emerald-600 hover:text-emerald-700 font-medium"
-                        >
-                          Provisionner compte parent
-                        </button>
-                      </div>
-                    ))}
+              <div className="flex items-start gap-3">
+                {student.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={student.photoUrl}
+                    alt={fullName}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                    {fullName.charAt(0).toUpperCase()}
                   </div>
                 )}
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">{fullName}</p>
+                  <p className="text-xs text-zinc-500">
+                    {student.schoolClass.name} · {student.sex === 'M' ? 'Masculin' : 'Féminin'} · {student.dateOfBirth}
+                  </p>
+                  {student.parents.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {student.parents.map((parent) => (
+                        <div key={parent.id} className="flex items-center gap-2 text-xs text-zinc-600">
+                          <span>
+                            {parent.fullName} ({parent.relationship}) — {parent.phoneNumber}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleProvisionParent(student.id, parent.id, parent.fullName)}
+                            className="text-emerald-600 hover:text-emerald-700 font-medium"
+                          >
+                            Provisionner compte parent
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
