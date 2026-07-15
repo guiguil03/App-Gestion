@@ -12,8 +12,14 @@ export const apiClient = axios.create({
   timeout: 10_000,
 });
 
-/** Résout un chemin relatif renvoyé par le backend (ex. photo élève `/uploads/...`) en URL absolue. */
+/**
+ * Résout un chemin renvoyé par le backend en URL absolue. Les photos élève
+ * sont désormais des URLs Supabase Storage déjà absolues (cf.
+ * StudentPhotoStorageService côté backend) — on ne préfixe que les chemins
+ * relatifs, pour rester compatible avec d'éventuelles ressources locales.
+ */
 export function resolveApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
   return `${API_BASE_URL}${path}`;
 }
 

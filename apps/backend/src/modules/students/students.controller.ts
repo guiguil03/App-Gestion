@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { extname } from 'node:path';
 
 import {
   BadRequestException,
@@ -16,7 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -25,10 +24,12 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
+import { detectImageExtension } from '@/modules/students/image-signature';
+import { StudentPhotoStorageService } from '@/modules/students/student-photo-storage.service';
 import { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
 import { StudentsService } from '@/modules/students/students.service';
 
-const ALLOWED_PHOTO_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png']);
+const ALLOWED_PHOTO_MIMETYPES = new Set(['image/jpeg', 'image/png']);
 
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,6 +37,7 @@ export class StudentsController {
   constructor(
     private readonly studentsService: StudentsService,
     private readonly tenant: TenantContext,
+    private readonly photoStorage: StudentPhotoStorageService,
   ) {}
 
   @Get()
@@ -86,17 +88,13 @@ export class StudentsController {
   @Roles('DIRECTION', 'ADMIN', 'PARENT')
   @UseInterceptors(
     FileInterceptor('photo', {
-      storage: diskStorage({
-        destination: './uploads/students',
-        filename: (_req, file, callback) => {
-          const ext = extname(file.originalname).toLowerCase();
-          if (!ALLOWED_PHOTO_EXTENSIONS.has(ext)) {
-            callback(new BadRequestException('Format de photo non supporté (jpg/png uniquement)'), '');
-            return;
-          }
-          callback(null, `${randomUUID()}${ext}`);
-        },
-      }),
+      // Buffer en mémoire, jamais écrit sur disque tel quel : le nom de
+      // fichier et le Content-Type déclarés par le client sont falsifiables,
+      // seul le contenu binaire reçu fait foi (cf. detectImageExtension).
+      storage: memoryStorage(),
+      fileFilter: (_req, file, callback) => {
+        callback(null, ALLOWED_PHOTO_MIMETYPES.has(file.mimetype));
+      },
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
@@ -108,10 +106,21 @@ export class StudentsController {
     if (user.role === 'PARENT') {
       await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
     }
+    await this.studentsService.assertBelongsToSchool(studentId, this.tenant.schoolId);
+
     if (!file) {
-      throw new BadRequestException('Photo manquante');
+      throw new BadRequestException('Photo manquante ou format non supporté (jpg/png uniquement)');
     }
-    return this.studentsService.setPhoto(studentId, this.tenant.schoolId, `/uploads/students/${file.filename}`);
+
+    const ext = detectImageExtension(file.buffer);
+    if (!ext) {
+      throw new BadRequestException("Le fichier envoyé n'est pas une image JPEG ou PNG valide");
+    }
+
+    const filename = `${randomUUID()}${ext}`;
+    const photoUrl = await this.photoStorage.upload(file.buffer, filename, ext);
+
+    return this.studentsService.setPhoto(studentId, this.tenant.schoolId, photoUrl);
   }
 
   // Retourne le mot de passe en clair une seule fois : à noter/transmettre
