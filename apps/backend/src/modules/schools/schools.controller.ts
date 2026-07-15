@@ -16,13 +16,13 @@ export class SchoolsController {
   ) {}
 
   @Get('attendance-settings')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   getAttendanceSettings() {
     return this.schoolsService.getAttendanceSettings(this.tenant.schoolId);
   }
 
   @Patch('attendance-settings')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   updateAttendanceSettings(@Body() dto: UpdateAttendanceSettingsDto) {
     return this.schoolsService.updateAttendanceSettings(this.tenant.schoolId, dto);
   }

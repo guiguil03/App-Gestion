@@ -3,6 +3,10 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 export const AUTH_COOKIE = {
   access: 'auth_token',
   refresh: 'auth_refresh',
+  // École actuellement "visitée" par un compte ADMIN (aucune école propre —
+  // vue transverse, voir TenantContext côté backend). Absent pour les autres
+  // rôles, qui utilisent toujours leur propre schoolId.
+  adminSchool: 'admin_school_id',
 } as const;
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -20,6 +24,7 @@ export function clearAuthCookies(): ResponseCookie[] {
   return [
     { name: AUTH_COOKIE.access, value: '', httpOnly: true, secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 },
     { name: AUTH_COOKIE.refresh, value: '', httpOnly: true, secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 },
+    { name: AUTH_COOKIE.adminSchool, value: '', httpOnly: true, secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 },
   ];
 }
 

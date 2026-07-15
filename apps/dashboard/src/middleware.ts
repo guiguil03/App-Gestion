@@ -5,6 +5,10 @@ import { AUTH_COOKIE } from '@/lib/auth/session-cookies';
 
 const PUBLIC_PATHS = ['/login'];
 
+function homeFor(role: string): string {
+  return role === 'ADMIN' ? '/admin' : '/dashboard';
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
@@ -20,11 +24,20 @@ export function middleware(request: NextRequest) {
     const res = NextResponse.redirect(new URL('/login', request.url));
     res.cookies.delete(AUTH_COOKIE.access);
     res.cookies.delete(AUTH_COOKIE.refresh);
+    res.cookies.delete(AUTH_COOKIE.adminSchool);
     return res;
   }
 
   if (isPublic || pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL(homeFor(session.role), request.url));
+  }
+
+  // `/admin` (liste des écoles, création) est réservé à ADMIN — un compte
+  // DIRECTION n'a pas de vue transverse. `/dashboard/*` reste accessible aux
+  // deux : DIRECTION via son école propre, ADMIN via l'école sélectionnée
+  // (cookie admin_school_id, voir /admin/select-school et le proxy [...path]).
+  if (pathname.startsWith('/admin') && session.role !== 'ADMIN') {
+    return NextResponse.redirect(new URL(homeFor(session.role), request.url));
   }
 
   return NextResponse.next();

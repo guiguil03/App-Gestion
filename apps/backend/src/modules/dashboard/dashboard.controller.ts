@@ -10,7 +10,7 @@ import { DashboardService } from '@/modules/dashboard/dashboard.service';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('DIRECTION')
+@Roles('DIRECTION', 'ADMIN')
 export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,

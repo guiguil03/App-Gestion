@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CommonModule } from '@/common/common.module';
 import { PrismaModule } from '@/database/prisma.module';
 import { AbsencesModule } from '@/modules/absences/absences.module';
+import { AdminModule } from '@/modules/admin/admin.module';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { CardsModule } from '@/modules/cards/cards.module';
@@ -37,6 +38,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     ClassesModule,
     StaffModule,
     DashboardModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

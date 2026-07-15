@@ -39,7 +39,7 @@ export class StudentsController {
   ) {}
 
   @Get()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   list(@Query('schoolClassId') schoolClassId?: string) {
     return this.studentsService.listStudents(this.tenant.schoolId, schoolClassId);
   }
@@ -55,7 +55,7 @@ export class StudentsController {
   }
 
   @Get(':studentId')
-  @Roles('DIRECTION', 'PARENT')
+  @Roles('DIRECTION', 'ADMIN', 'PARENT')
   async get(@Param('studentId') studentId: string, @CurrentUser() user: AuthenticatedUser) {
     if (user.role === 'PARENT') {
       await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
@@ -64,13 +64,13 @@ export class StudentsController {
   }
 
   @Post()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   create(@Body() dto: CreateStudentDto) {
     return this.studentsService.createStudent(dto, this.tenant.schoolId);
   }
 
   @Patch(':studentId')
-  @Roles('DIRECTION', 'PARENT')
+  @Roles('DIRECTION', 'ADMIN', 'PARENT')
   async update(
     @Param('studentId') studentId: string,
     @Body() dto: UpdateStudentDto,
@@ -83,7 +83,7 @@ export class StudentsController {
   }
 
   @Post(':studentId/photo')
-  @Roles('DIRECTION', 'PARENT')
+  @Roles('DIRECTION', 'ADMIN', 'PARENT')
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: diskStorage({
@@ -117,7 +117,7 @@ export class StudentsController {
   // Retourne le mot de passe en clair une seule fois : à noter/transmettre
   // immédiatement par la direction, non récupérable ensuite.
   @Post(':studentId/account')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   provisionAccount(@Param('studentId') studentId: string) {
     return this.studentsService.provisionAccount(studentId, this.tenant.schoolId);
   }
@@ -125,7 +125,7 @@ export class StudentsController {
   // Retourne le mot de passe en clair une seule fois (idem provisionAccount)
   // — `password: null` si un compte parent existant a été réutilisé (fratrie).
   @Post(':studentId/parents/:parentGuardianId/account')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   provisionParentAccount(
     @Param('studentId') studentId: string,
     @Param('parentGuardianId') parentGuardianId: string,

@@ -16,7 +16,7 @@ export class StaffController {
   ) {}
 
   @Get()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   list() {
     return this.staffService.list(this.tenant.schoolId);
   }
@@ -24,13 +24,13 @@ export class StaffController {
   // Retourne le mot de passe en clair une seule fois : à noter/transmettre
   // immédiatement, non récupérable ensuite (même UX que le provisioning élève/parent).
   @Post()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   create(@Body() dto: CreateStaffDto) {
     return this.staffService.create(dto, this.tenant.schoolId);
   }
 
   @Patch(':userId/disable')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   disable(@Param('userId') userId: string) {
     return this.staffService.disable(userId, this.tenant.schoolId);
   }

@@ -18,13 +18,13 @@ export class AbsencesController {
   ) {}
 
   @Get()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   list(@Query('schoolClassId') schoolClassId?: string) {
     return this.absencesService.list(this.tenant.schoolId, schoolClassId);
   }
 
   @Patch(':absenceId/justify')
-  @Roles('DIRECTION', 'PARENT')
+  @Roles('DIRECTION', 'ADMIN', 'PARENT')
   justify(
     @Param('absenceId') absenceId: string,
     @Body() dto: JustifyAbsenceDto,

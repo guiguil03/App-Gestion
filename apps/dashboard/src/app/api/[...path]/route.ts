@@ -24,6 +24,11 @@ async function proxy(req: NextRequest, path: string[]) {
   const accessToken = req.cookies.get(AUTH_COOKIE.access)?.value;
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
+  // Ignoré par le backend pour tout rôle autre que ADMIN (voir TenantContext)
+  // — sans effet pour DIRECTION, qui utilise toujours son propre schoolId.
+  const adminSchoolId = req.cookies.get(AUTH_COOKIE.adminSchool)?.value;
+  if (adminSchoolId) headers['x-school-id'] = adminSchoolId;
+
   const hasBody = !['GET', 'HEAD'].includes(req.method);
   const body = hasBody ? await req.text() : undefined;
 

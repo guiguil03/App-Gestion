@@ -17,7 +17,7 @@ export class CardsController {
   ) {}
 
   @Post(':studentId/issue')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   issue(@Param('studentId') studentId: string) {
     return this.cardsService.issueCard(studentId, this.tenant.schoolId);
   }
@@ -33,13 +33,13 @@ export class CardsController {
   }
 
   @Get(':studentId')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   getActive(@Param('studentId') studentId: string) {
     return this.cardsService.getActiveCard(studentId, this.tenant.schoolId);
   }
 
   @Post(':cardId/revoke')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   revoke(@Param('cardId') cardId: string) {
     return this.cardsService.revokeCard(cardId, this.tenant.schoolId);
   }

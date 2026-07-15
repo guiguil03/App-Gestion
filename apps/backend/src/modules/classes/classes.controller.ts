@@ -17,37 +17,37 @@ export class ClassesController {
   ) {}
 
   @Get()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   list() {
     return this.classesService.list(this.tenant.schoolId);
   }
 
   @Post()
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   create(@Body() dto: CreateClassDto) {
     return this.classesService.create(dto, this.tenant.schoolId);
   }
 
   @Patch(':classId')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   update(@Param('classId') classId: string, @Body() dto: UpdateClassDto) {
     return this.classesService.update(classId, dto, this.tenant.schoolId);
   }
 
   @Delete(':classId')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   remove(@Param('classId') classId: string) {
     return this.classesService.remove(classId, this.tenant.schoolId);
   }
 
   @Post(':classId/teachers/:userId')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   assignTeacher(@Param('classId') classId: string, @Param('userId') userId: string) {
     return this.classesService.assignTeacher(classId, userId, this.tenant.schoolId);
   }
 
   @Delete(':classId/teachers/:userId')
-  @Roles('DIRECTION')
+  @Roles('DIRECTION', 'ADMIN')
   unassignTeacher(@Param('classId') classId: string, @Param('userId') userId: string) {
     return this.classesService.unassignTeacher(classId, userId, this.tenant.schoolId);
   }

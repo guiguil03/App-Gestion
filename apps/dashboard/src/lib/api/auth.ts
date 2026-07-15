@@ -11,4 +11,7 @@ export const authApi = {
     const { data } = await apiClient.get<{ authenticated: boolean; session?: AuthSession }>('/auth/session');
     return data;
   },
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    await apiClient.post('/auth/change-password', { currentPassword, newPassword });
+  },
 };

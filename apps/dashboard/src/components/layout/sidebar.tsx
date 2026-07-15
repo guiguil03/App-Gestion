@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ClipboardX, GraduationCap, LayoutDashboard, LogOut, School, Settings, UserCircle, Users } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { ArrowLeft, ClipboardX, GraduationCap, LayoutDashboard, LogOut, School, Settings, UserCircle, Users } from 'lucide-react';
+import { adminApi } from '@/lib/api/admin';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -17,9 +18,16 @@ const NAV_LINKS = [
 ];
 
 export function Sidebar() {
+  const router = useRouter();
   const pathname = usePathname();
   const { session, logout } = useAuth();
   const initials = (session?.username ?? '??').slice(0, 2).toUpperCase();
+  const isAdmin = session?.role === 'ADMIN';
+
+  async function handleExitToSchools() {
+    await adminApi.exitSchool();
+    router.push('/admin');
+  }
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-60 z-50 flex flex-col bg-white border-r border-zinc-100 shadow-[2px_0_24px_rgba(0,0,0,0.04)]">
@@ -30,10 +38,21 @@ export function Sidebar() {
         <div className="min-w-0">
           <p className="text-sm font-bold text-zinc-900 leading-tight truncate tracking-tight">Présence Scolaire</p>
           <span className="inline-block text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full leading-none mt-0.5">
-            Direction
+            {isAdmin ? 'Admin' : 'Direction'}
           </span>
         </div>
       </div>
+
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => void handleExitToSchools()}
+          className="mx-3 mb-1 flex items-center gap-2 px-3 py-1.5 rounded-xl text-[13px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+        >
+          <ArrowLeft size={15} className="flex-shrink-0 text-zinc-400" />
+          <span>Toutes les écoles</span>
+        </button>
+      )}
 
       <nav className="flex-1 px-3 py-2 space-y-0.5">
         {NAV_LINKS.map(({ label, href, icon: Icon }) => {

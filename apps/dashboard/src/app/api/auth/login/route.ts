@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: data.message ?? 'Identifiants incorrects' }, { status: upstream.status });
   }
 
-  if (data.role !== 'DIRECTION') {
-    return NextResponse.json({ message: "Ce compte n'a pas accès au dashboard direction" }, { status: 403 });
+  if (data.role !== 'DIRECTION' && data.role !== 'ADMIN') {
+    return NextResponse.json({ message: "Ce compte n'a pas accès à ce dashboard" }, { status: 403 });
   }
 
   if (!data.accessToken || !data.refreshToken) {

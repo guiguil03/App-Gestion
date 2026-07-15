@@ -130,6 +130,11 @@ async function main() {
     // corriger dans une prochaine itération si le scoping réel est nécessaire.
     data: { username: 'parent1', passwordHash, role: 'PARENT', schoolId: school.id },
   });
+  // Compte ADMIN : pas d'école propre (vue transverse sur toutes les
+  // écoles, cf. AdminModule / apps/dashboard "/admin").
+  await prisma.user.create({
+    data: { username: 'admin1', passwordHash, role: 'ADMIN', schoolId: null },
+  });
 
   let studentCount = 0;
   let firstQr: string | null = null;
@@ -208,7 +213,7 @@ async function main() {
 
   console.log(`École créée: ${school.id}`);
   console.log(`${schoolClasses.length} classes, ${studentCount} élèves créés.`);
-  console.log('Identifiants de test : surveillant1 / direction1 / parent1, mot de passe "changeme123"');
+  console.log('Identifiants de test : surveillant1 / direction1 / parent1 / admin1, mot de passe "changeme123"');
 }
 
 main()

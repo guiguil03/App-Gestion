@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authApi.login(username, password);
       const data = await authApi.session();
       setSession(data.session ?? null);
-      router.push('/dashboard');
+      router.push(data.session?.role === 'ADMIN' ? '/admin' : '/dashboard');
     },
     [router],
   );
