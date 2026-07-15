@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // backend (the sync protocol matches records by `id` in both directions),
 // so no separate `server_id` column is needed anywhere in this schema.
 export const schema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: 'schools',
@@ -13,6 +13,11 @@ export const schema = appSchema({
         { name: 'attendance_reference_time', type: 'string' }, // "HH:mm"
         { name: 'attendance_tolerance_minutes', type: 'number' },
         { name: 'card_signing_public_key', type: 'string', isOptional: true }, // hex Ed25519
+        // JSON stringifié `[{lat,lng}, ...]` (4 coins) — pas de type JSON natif
+        // dans WatermelonDB. `null`/absent = pas de restriction de position.
+        { name: 'geofence_corners', type: 'string', isOptional: true },
+        { name: 'scan_window_start', type: 'string', isOptional: true }, // "HH:mm"
+        { name: 'scan_window_end', type: 'string', isOptional: true }, // "HH:mm"
       ],
     }),
     tableSchema({
@@ -72,6 +77,10 @@ export const schema = appSchema({
         { name: 'is_late', type: 'boolean' },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'session_id', type: 'string', isOptional: true, isIndexed: true },
+        // Position GPS captée au moment du scan — renseignée uniquement si
+        // l'école a un périmètre configuré (voir School.geofence_corners).
+        { name: 'latitude', type: 'number', isOptional: true },
+        { name: 'longitude', type: 'number', isOptional: true },
       ],
     }),
     tableSchema({

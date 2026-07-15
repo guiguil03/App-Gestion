@@ -12,6 +12,8 @@ import School from '@/db/models/School';
 import TeacherSigningKey from '@/db/models/TeacherSigningKey';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
+import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
+import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 import { parseSessionQrCode, verifySessionSignature } from '@/services/sessionQr';
@@ -22,6 +24,7 @@ const RESCAN_COOLDOWN_MS = 4000;
 
 export default function StudentScanScreen() {
   const database = useOptionalDatabase();
+  const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
   const lastScan = useRef<{ sessionId: string; at: number } | null>(null);
@@ -96,6 +99,29 @@ export default function StudentScanScreen() {
 
     try {
       const school = await database.get<School>('schools').find(schoolId);
+
+      // Même logique de rejet que useRecordAttendance.ts (utilisée par le
+      // flux enseignant/scan de carte) : école sans périmètre/plage
+      // configurés = aucune restriction, comportement inchangé.
+      const geofenceCorners = school.geofenceCorners;
+      const coords = currentLocation.current;
+      if (geofenceCorners) {
+        if (!coords) {
+          setFeedback({ status: 'position_indisponible' });
+          return;
+        }
+        if (!isWithinGeofence(geofenceCorners, { lat: coords.latitude, lng: coords.longitude })) {
+          setFeedback({ status: 'hors_perimetre' });
+          return;
+        }
+      }
+      if (school.scanWindowStart && school.scanWindowEnd) {
+        if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, new Date(now))) {
+          setFeedback({ status: 'hors_horaire' });
+          return;
+        }
+      }
+
       const isLate = now > openedAt + school.attendanceToleranceMinutes * 60_000;
 
       await database.write(() =>
@@ -106,6 +132,10 @@ export default function StudentScanScreen() {
           record.recordedAt = new Date(now);
           record.isLate = isLate;
           record.sessionId = sessionId;
+          if (coords) {
+            record.latitude = coords.latitude;
+            record.longitude = coords.longitude;
+          }
         }),
       );
 

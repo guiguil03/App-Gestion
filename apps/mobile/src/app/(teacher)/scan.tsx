@@ -10,7 +10,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { Buffer } from 'buffer';
 
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
-import { useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
+import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
+import { GeofenceRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
 import School from '@/db/models/School';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
@@ -24,6 +25,7 @@ export default function ScanScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
   const recordAttendance = useRecordAttendance();
+  const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [checkpoint, setCheckpoint] = useState<Checkpoint>('portail');
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
@@ -82,10 +84,14 @@ export default function ScanScreen() {
     }
 
     try {
-      const record = await recordAttendance(studentId, checkpoint);
+      const record = await recordAttendance(studentId, checkpoint, currentLocation.current);
       setFeedback({ status: 'ok', isLate: record.isLate });
-    } catch {
-      setFeedback({ status: 'erreur' });
+    } catch (error) {
+      if (error instanceof GeofenceRejectionError) {
+        setFeedback({ status: error.reason });
+      } else {
+        setFeedback({ status: 'erreur' });
+      }
     }
   }
 

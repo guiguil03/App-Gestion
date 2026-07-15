@@ -26,6 +26,10 @@ export default class AttendanceRecord extends Model {
   // Non-null uniquement pour un pointage auto-scanné par l'élève via un QR
   // de session — null pour un scan de carte classique.
   @text('session_id') sessionId?: string;
+  // Position GPS captée au moment du scan — renseignée uniquement si l'école
+  // a un périmètre configuré (voir School.geofenceCorners).
+  @field('latitude') latitude?: number;
+  @field('longitude') longitude?: number;
 
   @relation('students', 'student_id') student: Relation<Student>;
 }

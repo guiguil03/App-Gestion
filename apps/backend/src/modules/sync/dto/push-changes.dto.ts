@@ -12,6 +12,11 @@ export type RawAttendanceRecord = {
   // Renseigné uniquement pour un pointage auto-scanné par l'élève via un QR
   // de session (cf. RawAttendanceSessionCreate).
   session_id?: string | null;
+  // Position GPS captée sur l'appareil au moment du scan — absente si
+  // l'école n'a pas de périmètre configuré ou si la position n'était pas
+  // disponible (voir AttendanceService.recordFromSync pour la validation).
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 // Poussé par l'appareil enseignant à l'ouverture d'une session.

@@ -144,6 +144,9 @@ function toSchoolRow(school: {
   attendanceReferenceTime: string;
   attendanceToleranceMinutes: number;
   cardSigningPublicKey: string;
+  geofenceCorners: unknown;
+  scanWindowStart: string | null;
+  scanWindowEnd: string | null;
 }) {
   return {
     id: school.id,
@@ -153,6 +156,11 @@ function toSchoolRow(school: {
     // Clé publique Ed25519 (hex) — la privée ne quitte jamais le backend.
     // Permet la vérification de signature de carte 100% offline côté mobile.
     card_signing_public_key: school.cardSigningPublicKey,
+    // WatermelonDB n'a pas de colonne JSON native : sérialisé en texte,
+    // reparsé côté mobile (voir apps/mobile/src/services/sync.ts).
+    geofence_corners: school.geofenceCorners ? JSON.stringify(school.geofenceCorners) : null,
+    scan_window_start: school.scanWindowStart,
+    scan_window_end: school.scanWindowEnd,
   };
 }
 

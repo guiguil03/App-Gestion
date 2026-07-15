@@ -21,6 +21,8 @@ type RawAttendanceRecordChange = {
   recorded_at: number;
   is_late: boolean;
   session_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type RawAttendanceSessionCreateChange = {
@@ -98,7 +100,7 @@ export async function runSync(database: Database): Promise<void> {
       // contiennent aussi les colonnes internes WatermelonDB (`_status`,
       // `_changed`) qui n'ont rien à faire sur le fil.
       const pickedRecords = createdRecords.map(
-        ({ id, student_id, checkpoint, direction, recorded_at, is_late, session_id }) => ({
+        ({ id, student_id, checkpoint, direction, recorded_at, is_late, session_id, latitude, longitude }) => ({
           id,
           student_id,
           checkpoint,
@@ -106,6 +108,8 @@ export async function runSync(database: Database): Promise<void> {
           recorded_at,
           is_late,
           session_id,
+          latitude,
+          longitude,
         }),
       );
       const pickedCreatedSessions = createdSessions.map(({ id, school_class_id, opened_at, expires_at, closed_at }) => ({

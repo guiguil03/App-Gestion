@@ -139,7 +139,15 @@ l'erreur `RNGetRandomValues could not be found`.
 - Fonctionnels : pointage (carte + session), gestion complète des fiches
   élèves côté Direction (identité, photo, carte QR imprimable, provisioning
   de comptes), édition par les parents de leurs propres enfants, dashboard
-  enseignant, historiques (élève/parent/enseignant).
-- Notifications (SMS mock) : squelette en place.
-- Rapports, dashboard web direction/admin : pas encore implémentés.
+  enseignant (mobile), historiques (élève/parent/enseignant), détection
+  automatique des absences, dashboard web direction (`apps/dashboard`) avec
+  vue d'ensemble temps réel, gestion des classes/personnel/élèves/absences.
+- Géorepérage du pointage : périmètre GPS (4 coins) et plage horaire
+  configurables par école depuis `apps/dashboard` (Paramètres) ; un pointage
+  hors périmètre ou hors horaire n'est pas enregistré (vérifié côté appareil
+  pour un feedback immédiat même hors ligne, revérifié côté serveur à la
+  synchro). Désactivé par défaut tant que l'école n'a pas configuré son
+  périmètre.
+- Notifications : SMS (provider mock, passerelle opérateur réelle non
+  branchée) + push Expo pour les comptes parent avec un token enregistré.
 - Photos élève : stockage disque local uniquement (pas de S3/cloud storage).

@@ -9,6 +9,7 @@ import {
   ATTENDANCE_RECORDED_EVENT,
   AttendanceRecordedEvent,
 } from '@/modules/attendance/events/attendance-recorded.event';
+import { type GeoPoint, isWithinGeofence, isWithinScanWindow } from '@/modules/attendance/geofence';
 import { LateDetectionService } from '@/modules/attendance/late-detection.service';
 import type { RawAttendanceRecord } from '@/modules/sync/dto/push-changes.dto';
 import { StudentsService } from '@/modules/students/students.service';
@@ -50,6 +51,27 @@ export class AttendanceService {
     const school = await this.prisma.school.findUniqueOrThrow({ where: { id: user.schoolId } });
     const recordedAt = new Date(raw.recorded_at);
 
+    // Défense en profondeur : la validation "vraie" a déjà eu lieu côté
+    // appareil (feedback immédiat à l'enseignant/élève, y compris hors
+    // ligne) — ceci ne fait que rejeter silencieusement un pointage qui
+    // l'aurait quand même franchie (client modifié, coordonnées absentes).
+    // Écoles sans périmètre/plage configurés (geofenceCorners/scanWindow*
+    // à null) : aucune restriction, comportement identique à avant.
+    if (school.geofenceCorners) {
+      const corners = school.geofenceCorners as unknown as GeoPoint[];
+      const hasCoords = typeof raw.latitude === 'number' && typeof raw.longitude === 'number';
+      if (!hasCoords || !isWithinGeofence(corners, { lat: raw.latitude as number, lng: raw.longitude as number })) {
+        this.logger.warn(`Pointage ${raw.id} rejeté : hors du périmètre de l'école ${school.id}`);
+        return null;
+      }
+    }
+    if (school.scanWindowStart && school.scanWindowEnd) {
+      if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, recordedAt)) {
+        this.logger.warn(`Pointage ${raw.id} rejeté : hors de la plage horaire de pointage de l'école ${school.id}`);
+        return null;
+      }
+    }
+
     let session = null;
     if (raw.session_id) {
       session = await this.prisma.attendanceSession.findFirst({
@@ -82,6 +104,8 @@ export class AttendanceService {
           recordedAt,
           isLate,
           sessionId: session?.id,
+          latitude: raw.latitude ?? undefined,
+          longitude: raw.longitude ?? undefined,
         },
         update: {},
       });

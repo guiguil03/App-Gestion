@@ -46,6 +46,15 @@ model School {
   // les appareils pour une vérification de signature 100% hors-ligne.
   cardSigningPrivateKey      String    @map("card_signing_private_key")
   cardSigningPublicKey       String    @map("card_signing_public_key")
+  // Coordonnées GPS des 4 coins du périmètre de l'école, dans l'ordre
+  // (polygone simple) : [{ lat, lng }, ...]. `null` = pas encore configuré,
+  // aucune restriction de position appliquée au pointage.
+  geofenceCorners            Json?     @map("geofence_corners")
+  // Plage horaire ("HH:mm") où le pointage est autorisé. `null` = pas de
+  // restriction. Indépendant de attendanceReferenceTime, qui ne sert qu'à
+  // détecter un retard — pas à bloquer le pointage.
+  scanWindowStart            String?   @map("scan_window_start")
+  scanWindowEnd              String?   @map("scan_window_end")
   createdAt                  DateTime  @default(now()) @map("created_at")
   updatedAt                  DateTime  @updatedAt @map("updated_at")
   deletedAt                  DateTime? @map("deleted_at")
@@ -173,6 +182,13 @@ model AttendanceRecord {
   // Non-null uniquement pour un pointage auto-scanné par l'élève via le QR
   // de session (cf. AttendanceSession) — null pour un scan de carte classique.
   sessionId  String?             @map("session_id")
+  // Position GPS captée sur l'appareil au moment du scan — renseignée
+  // uniquement si l'école a un périmètre configuré (voir School.geofenceCorners).
+  // Conservée à titre d'audit ; la validation elle-même a déjà eu lieu côté
+  // appareil avant la création de ce pointage, et est revérifiée ici en
+  // défense en profondeur (voir AttendanceService.recordFromSync).
+  latitude   Float?
+  longitude  Float?
 
   student Student            @relation(fields: [studentId], references: [id])
   session AttendanceSession? @relation(fields: [sessionId], references: [id])

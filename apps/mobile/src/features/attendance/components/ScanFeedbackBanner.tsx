@@ -12,7 +12,10 @@ export type ScanFeedback =
   | { status: 'falsifiee' }
   | { status: 'erreur' }
   | { status: 'expiree' }
-  | { status: 'deja_scanne' };
+  | { status: 'deja_scanne' }
+  | { status: 'hors_perimetre' }
+  | { status: 'hors_horaire' }
+  | { status: 'position_indisponible' };
 
 const NEUTRAL_COLOR = '#4B5563';
 
@@ -32,6 +35,12 @@ function labelFor(feedback: ScanFeedback): string {
       return 'Session expirée — demande un nouveau QR';
     case 'deja_scanne':
       return 'Présence déjà enregistrée pour cette session';
+    case 'hors_perimetre':
+      return "Hors du périmètre de l'école — pointage refusé";
+    case 'hors_horaire':
+      return 'Hors des horaires de pointage autorisés';
+    case 'position_indisponible':
+      return 'Position GPS indisponible — active la localisation';
   }
 }
 
@@ -50,6 +59,12 @@ function iconFor(feedback: ScanFeedback): keyof typeof Ionicons.glyphMap {
       return 'time-outline';
     case 'deja_scanne':
       return 'checkmark-done-circle';
+    case 'hors_perimetre':
+      return 'location-outline';
+    case 'hors_horaire':
+      return 'time-outline';
+    case 'position_indisponible':
+      return 'locate-outline';
   }
 }
 
@@ -83,6 +98,11 @@ function colorFor(feedback: ScanFeedback, theme: { success: string; warning: str
     case 'expiree':
       return theme.warning;
     case 'deja_scanne':
+      return NEUTRAL_COLOR;
+    case 'hors_perimetre':
+    case 'hors_horaire':
+      return theme.danger;
+    case 'position_indisponible':
       return NEUTRAL_COLOR;
   }
 }

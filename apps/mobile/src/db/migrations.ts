@@ -56,5 +56,25 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: 'schools',
+          columns: [
+            { name: 'geofence_corners', type: 'string', isOptional: true },
+            { name: 'scan_window_start', type: 'string', isOptional: true },
+            { name: 'scan_window_end', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'attendance_records',
+          columns: [
+            { name: 'latitude', type: 'number', isOptional: true },
+            { name: 'longitude', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
