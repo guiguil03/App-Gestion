@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,7 +13,7 @@ const studentSchema = z.object({
   middleName: z.string().optional(),
   firstName: z.string().min(1, 'Prénom requis'),
   sex: z.enum(['M', 'F']),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format AAAA-MM-JJ'),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date de naissance requise'),
   schoolClassId: z.string().min(1, 'Classe requise'),
   parentFullName: z.string().optional(),
   parentRelationship: z.string().optional(),
@@ -22,17 +23,39 @@ type StudentForm = z.infer<typeof studentSchema>;
 
 type ProvisionedCredentials = { label: string; username: string; password: string | null };
 
+// useSearchParams() force un bailout CSR côté Next.js : la page doit être
+// enveloppée dans une frontière Suspense, sinon `next build` échoue.
 export default function ElevesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ElevesPageContent />
+    </Suspense>
+  );
+}
+
+function ElevesPageContent() {
   const students = useStudents();
   const classes = useClasses();
   const createStudent = useCreateStudent();
   const provisionStudentAccount = useProvisionStudentAccount();
   const provisionParentAccount = useProvisionParentAccount();
+  const searchParams = useSearchParams();
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
-  const { register, handleSubmit, reset } = useForm<StudentForm>({
+  const [classFilter, setClassFilter] = useState(searchParams.get('classId') ?? '');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
     defaultValues: { sex: 'M' },
   });
+
+  const filteredStudents = useMemo(() => {
+    const all = students.data ?? [];
+    return classFilter ? all.filter((s) => s.schoolClassId === classFilter) : all;
+  }, [students.data, classFilter]);
 
   async function onSubmit(values: StudentForm) {
     await createStudent.mutateAsync({
@@ -85,11 +108,18 @@ export default function ElevesPage() {
         </div>
       )}
 
+      {createStudent.isError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          Impossible de créer l&apos;élève. Vérifie les champs et réessaie.
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Nom</label>
             <input {...register('lastName')} className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+            {errors.lastName && <p className="text-xs text-red-600">{errors.lastName.message}</p>}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Post-nom</label>
@@ -98,6 +128,7 @@ export default function ElevesPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Prénom</label>
             <input {...register('firstName')} className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+            {errors.firstName && <p className="text-xs text-red-600">{errors.firstName.message}</p>}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Sexe</label>
@@ -109,10 +140,11 @@ export default function ElevesPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Date de naissance</label>
             <input
+              type="date"
               {...register('dateOfBirth')}
-              placeholder="2018-05-20"
               className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
             />
+            {errors.dateOfBirth && <p className="text-xs text-red-600">{errors.dateOfBirth.message}</p>}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Classe</label>
@@ -124,6 +156,7 @@ export default function ElevesPage() {
                 </option>
               ))}
             </select>
+            {errors.schoolClassId && <p className="text-xs text-red-600">{errors.schoolClassId.message}</p>}
           </div>
         </div>
 
@@ -145,13 +178,35 @@ export default function ElevesPage() {
           </div>
         </div>
 
-        <button type="submit" className="rounded-lg bg-zinc-900 text-white text-sm font-medium px-4 py-2 hover:bg-zinc-800">
-          Créer l&apos;élève
+        <button
+          type="submit"
+          disabled={createStudent.isPending}
+          className="rounded-lg bg-zinc-900 text-white text-sm font-medium px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+        >
+          {createStudent.isPending ? 'Création...' : "Créer l'élève"}
         </button>
       </form>
 
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-700">
+          {classFilter ? (classes.data ?? []).find((c) => c.id === classFilter)?.name : 'Toutes les classes'} ({filteredStudents.length})
+        </h2>
+        <select
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          className="text-sm border border-zinc-200 rounded-lg px-2 py-1.5"
+        >
+          <option value="">Toutes les classes</option>
+          {(classes.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-        {(students.data ?? []).map((student) => {
+        {filteredStudents.map((student) => {
           const fullName = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
           return (
             <div key={student.id} className="p-4 flex items-start justify-between gap-4">
@@ -189,7 +244,7 @@ export default function ElevesPage() {
             </div>
           );
         })}
-        {students.data?.length === 0 && <p className="p-4 text-sm text-zinc-400">Aucun élève.</p>}
+        {filteredStudents.length === 0 && <p className="p-4 text-sm text-zinc-400">Aucun élève.</p>}
       </div>
     </div>
   );

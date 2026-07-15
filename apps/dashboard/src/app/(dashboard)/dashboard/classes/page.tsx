@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -44,7 +45,15 @@ export default function ClassesPage() {
         {(classes.data ?? []).map((schoolClass) => (
           <div key={schoolClass.id} className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">{schoolClass.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-zinc-900">{schoolClass.name}</p>
+                <Link
+                  href={`/dashboard/eleves?classId=${schoolClass.id}`}
+                  className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                >
+                  Voir les élèves
+                </Link>
+              </div>
               <p className="text-xs text-zinc-500">{schoolClass.promotion}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {schoolClass.assignedTeachers.map((teacher) => (
