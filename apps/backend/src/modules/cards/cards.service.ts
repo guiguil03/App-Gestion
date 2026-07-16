@@ -50,11 +50,7 @@ export class CardsService {
       throw new NotFoundException('Aucune carte active pour cet élève');
     }
 
-    const payloadBase64 = Buffer.from(
-      JSON.stringify({ cardId: card.id, studentId, schoolId, issuedAt: card.issuedAt.getTime() }),
-    ).toString('base64');
-
-    return { card, qrCode: this.signing.toQrString(payloadBase64, card.signature) };
+    return { card, qrCode: this.buildQrCode(card, studentId, schoolId) };
   }
 
   async revokeCard(cardId: string, schoolId: string) {
@@ -64,5 +60,60 @@ export class CardsService {
     if (!card) throw new NotFoundException('Carte introuvable');
 
     return this.prisma.studentCard.update({ where: { id: cardId }, data: { revoked: true } });
+  }
+
+  /** Statut carte (active + historique révoqué) de tous les élèves de l'école — vue de gestion pour le dashboard. */
+  async listForSchool(schoolId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { schoolId, deletedAt: null },
+      include: { schoolClass: true, cards: { orderBy: { issuedAt: 'desc' } } },
+      orderBy: [{ schoolClass: { name: 'asc' } }, { lastName: 'asc' }],
+    });
+
+    return students.map((student) => {
+      const activeCardRow = student.cards.find((c) => !c.revoked) ?? null;
+      const history = student.cards.filter((c) => c.id !== activeCardRow?.id);
+
+      return {
+        student: {
+          id: student.id,
+          lastName: student.lastName,
+          middleName: student.middleName,
+          firstName: student.firstName,
+          photoUrl: student.photoUrl,
+          schoolClass: {
+            id: student.schoolClass.id,
+            name: student.schoolClass.name,
+            promotion: student.schoolClass.promotion,
+          },
+        },
+        activeCard: activeCardRow
+          ? { id: activeCardRow.id, issuedAt: activeCardRow.issuedAt, qrCode: this.buildQrCode(activeCardRow, student.id, schoolId) }
+          : null,
+        history: history.map((c) => ({ id: c.id, issuedAt: c.issuedAt, revokedAt: c.updatedAt })),
+      };
+    });
+  }
+
+  /** Émet une carte pour chaque élève de la classe qui n'a pas déjà de carte active. */
+  async issueBatch(schoolClassId: string, schoolId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { schoolClassId, schoolId, deletedAt: null },
+      include: { cards: { where: { revoked: false } } },
+    });
+    const toIssue = students.filter((s) => s.cards.length === 0);
+    const results = await Promise.all(toIssue.map((s) => this.issueCard(s.id, schoolId)));
+    return { issuedCount: results.length };
+  }
+
+  private buildQrCode(
+    card: { id: string; signature: string; issuedAt: Date },
+    studentId: string,
+    schoolId: string,
+  ): string {
+    const payloadBase64 = Buffer.from(
+      JSON.stringify({ cardId: card.id, studentId, schoolId, issuedAt: card.issuedAt.getTime() }),
+    ).toString('base64');
+    return this.signing.toQrString(payloadBase64, card.signature);
   }
 }

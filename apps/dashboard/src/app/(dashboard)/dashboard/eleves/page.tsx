@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -224,7 +225,9 @@ function ElevesPageContent() {
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-zinc-900">{fullName}</p>
+                  <Link href={`/dashboard/eleves/${student.id}`} className="text-sm font-semibold text-zinc-900 hover:text-emerald-600">
+                    {fullName}
+                  </Link>
                   <p className="text-xs text-zinc-500">
                     {student.schoolClass.name} · {student.sex === 'M' ? 'Masculin' : 'Féminin'} · {student.dateOfBirth}
                   </p>

@@ -5,6 +5,14 @@ export function useAbsences() {
   return useQuery({ queryKey: ['absences'], queryFn: absencesApi.list });
 }
 
+export function useStudentAbsences(studentId: string | null) {
+  return useQuery({
+    queryKey: ['absences', 'student', studentId],
+    queryFn: () => absencesApi.listByStudent(studentId as string),
+    enabled: !!studentId,
+  });
+}
+
 export function useJustifyAbsence() {
   const queryClient = useQueryClient();
   return useMutation({

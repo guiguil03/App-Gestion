@@ -5,6 +5,14 @@ export function useStudents() {
   return useQuery({ queryKey: ['students'], queryFn: studentsApi.list });
 }
 
+export function useStudent(studentId: string | null) {
+  return useQuery({
+    queryKey: ['students', studentId],
+    queryFn: () => studentsApi.get(studentId as string),
+    enabled: !!studentId,
+  });
+}
+
 export function useCreateStudent() {
   const queryClient = useQueryClient();
   return useMutation({

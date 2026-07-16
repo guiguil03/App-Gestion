@@ -7,3 +7,29 @@
     @apply bg-slate-50 text-slate-900 antialiased;
   }
 }
+
+/* Zone d'impression des cartes élève (portail monté dans document.body par
+   useCardPrint) — hors écran en usage normal, révélée seule à l'impression. */
+#card-print-area {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+#card-print-area .student-card-print-item {
+  break-inside: avoid;
+}
+
+@media print {
+  body > *:not(#card-print-area) {
+    display: none !important;
+  }
+
+  #card-print-area {
+    position: static;
+    left: auto;
+  }
+}

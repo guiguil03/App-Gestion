@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -20,6 +20,18 @@ export class CardsController {
   @Roles('DIRECTION', 'ADMIN')
   issue(@Param('studentId') studentId: string) {
     return this.cardsService.issueCard(studentId, this.tenant.schoolId);
+  }
+
+  @Get()
+  @Roles('DIRECTION', 'ADMIN')
+  list() {
+    return this.cardsService.listForSchool(this.tenant.schoolId);
+  }
+
+  @Post('issue-batch')
+  @Roles('DIRECTION', 'ADMIN')
+  issueBatch(@Body('schoolClassId') schoolClassId: string) {
+    return this.cardsService.issueBatch(schoolClassId, this.tenant.schoolId);
   }
 
   // Déclaré avant `:studentId` — sinon "me" serait capturé comme un id.

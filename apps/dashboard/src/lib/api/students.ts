@@ -3,6 +3,7 @@ import type { CreateStudentInput, ProvisionedAccount, ProvisionedParentAccount, 
 
 export const studentsApi = {
   list: async () => (await apiClient.get<Student[]>('/students')).data,
+  get: async (studentId: string) => (await apiClient.get<Student>(`/students/${studentId}`)).data,
   create: async (input: CreateStudentInput) => (await apiClient.post<Student>('/students', input)).data,
   provisionAccount: async (studentId: string) =>
     (await apiClient.post<ProvisionedAccount>(`/students/${studentId}/account`)).data,

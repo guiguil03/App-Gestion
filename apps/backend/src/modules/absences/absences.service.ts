@@ -71,9 +71,9 @@ export class AbsencesService {
     }
   }
 
-  async list(schoolId: string, schoolClassId?: string) {
+  async list(schoolId: string, schoolClassId?: string, studentId?: string) {
     return this.prisma.absence.findMany({
-      where: { student: { schoolId, schoolClassId } },
+      where: { studentId, student: { schoolId, schoolClassId } },
       include: { student: true },
       orderBy: { date: 'desc' },
     });

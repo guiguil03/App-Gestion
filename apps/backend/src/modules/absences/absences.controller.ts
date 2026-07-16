@@ -19,8 +19,8 @@ export class AbsencesController {
 
   @Get()
   @Roles('DIRECTION', 'ADMIN')
-  list(@Query('schoolClassId') schoolClassId?: string) {
-    return this.absencesService.list(this.tenant.schoolId, schoolClassId);
+  list(@Query('schoolClassId') schoolClassId?: string, @Query('studentId') studentId?: string) {
+    return this.absencesService.list(this.tenant.schoolId, schoolClassId, studentId);
   }
 
   @Patch(':absenceId/justify')
