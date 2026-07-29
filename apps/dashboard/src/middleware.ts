@@ -3,7 +3,11 @@ import type { NextRequest } from 'next/server';
 import { decodeAccessToken } from '@/lib/auth/decode-access-token';
 import { AUTH_COOKIE } from '@/lib/auth/session-cookies';
 
+// Redirigés vers l'espace connecté si l'utilisateur a déjà une session.
 const PUBLIC_PATHS = ['/login'];
+// Toujours accessibles, connecté ou non (CGU/confidentialité doivent rester
+// joignables sans authentification — exigence Google Play / conformité légale).
+const ALWAYS_PUBLIC_PATHS = ['/cgu', '/confidentialite'];
 
 function homeFor(role: string): string {
   return role === 'ADMIN' ? '/admin' : '/dashboard';
@@ -11,6 +15,10 @@ function homeFor(role: string): string {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (ALWAYS_PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const token = request.cookies.get(AUTH_COOKIE.access)?.value;
 

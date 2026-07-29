@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/providers/auth-provider';
@@ -67,6 +68,18 @@ export default function LoginPage() {
         >
           {isSubmitting ? 'Connexion...' : 'Se connecter'}
         </button>
+
+        <p className="text-center text-xs text-zinc-400">
+          En vous connectant, vous acceptez les{' '}
+          <Link href="/cgu" className="underline hover:text-zinc-600">
+            CGU
+          </Link>{' '}
+          et la{' '}
+          <Link href="/confidentialite" className="underline hover:text-zinc-600">
+            politique de confidentialité
+          </Link>
+          .
+        </p>
       </form>
     </div>
   );
