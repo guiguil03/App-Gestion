@@ -25,13 +25,11 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "CAMERA",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ],
-      "package": "com.presenceSchool.app"
+      "package": "com.presenceconnect.app"
     },
     "web": {
       "output": "static",
@@ -44,7 +42,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "La caméra est utilisée pour scanner le QR code de la carte d'élève lors du pointage."
+          "cameraPermission": "La caméra est utilisée pour scanner le QR code de la carte d'élève lors du pointage.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [

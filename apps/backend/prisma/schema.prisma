@@ -129,12 +129,20 @@ model ParentGuardian {
   secondaryPhoneNumber String?             @map("secondary_phone_number")
   address              String?
   notificationChannel  NotificationChannel @default(BOTH) @map("notification_channel")
+  // Compte PARENT provisionné pour cette fiche précise (voir
+  // StudentsService.provisionParentAccount). Permet à NotificationsService de
+  // cibler le canal push exactement selon `notificationChannel` de cette
+  // fiche, plutôt que tout compte PARENT lié à l'élève — plusieurs fiches
+  // (fratrie) peuvent pointer vers le même compte.
+  userId               String?             @map("user_id")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
   student Student @relation(fields: [studentId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
 
   @@index([studentId])
+  @@index([userId])
   @@map("parent_guardians")
 }
 
@@ -271,6 +279,8 @@ model User {
   // Renseigné uniquement pour un compte PARENT : les enfants que ce compte
   // est autorisé à consulter/modifier.
   children        Student[]           @relation("parent_of")
+  // Fiches ParentGuardian provisionnées vers ce compte (une par enfant en cas de fratrie).
+  parentGuardians ParentGuardian[]
 
   @@map("users")
 }

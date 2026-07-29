@@ -97,10 +97,16 @@ export class StudentsService {
     });
 
     if (existingAccount) {
-      await this.prisma.user.update({
-        where: { id: existingAccount.id },
-        data: { children: { connect: { id: studentId } } },
-      });
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: existingAccount.id },
+          data: { children: { connect: { id: studentId } } },
+        }),
+        this.prisma.parentGuardian.update({
+          where: { id: parentGuardianId },
+          data: { userId: existingAccount.id },
+        }),
+      ]);
       return { username: existingAccount.username, password: null, reused: true };
     }
 
@@ -108,8 +114,12 @@ export class StudentsService {
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await this.prisma.user.create({
+    const account = await this.prisma.user.create({
       data: { username, passwordHash, role: 'PARENT', schoolId, children: { connect: { id: studentId } } },
+    });
+    await this.prisma.parentGuardian.update({
+      where: { id: parentGuardianId },
+      data: { userId: account.id },
     });
 
     return { username, password, reused: false };

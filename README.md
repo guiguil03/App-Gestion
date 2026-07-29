@@ -149,5 +149,9 @@ l'erreur `RNGetRandomValues could not be found`.
   synchro). Désactivé par défaut tant que l'école n'a pas configuré son
   périmètre.
 - Notifications : SMS (provider mock, passerelle opérateur réelle non
-  branchée) + push Expo pour les comptes parent avec un token enregistré.
-- Photos élève : stockage disque local uniquement (pas de S3/cloud storage).
+  branchée) + push Expo, tous deux filtrés précisément par fiche parent
+  (`ParentGuardian.notificationChannel`) via le compte provisionné pour
+  cette fiche (`ParentGuardian.userId`).
+- Photos élève : stockage Supabase Storage (bucket `student-photos`, clé
+  `service_role` côté backend uniquement) — survit aux redéploiements,
+  contrairement à un disque local.

@@ -13,6 +13,7 @@ import { CardsModule } from '@/modules/cards/cards.module';
 import { ClassesModule } from '@/modules/classes/classes.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
+import { ReportsModule } from '@/modules/reports/reports.module';
 import { SchoolsModule } from '@/modules/schools/schools.module';
 import { SigningKeysModule } from '@/modules/signing-keys/signing-keys.module';
 import { StaffModule } from '@/modules/staff/staff.module';
@@ -39,6 +40,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     StaffModule,
     DashboardModule,
     AdminModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}
