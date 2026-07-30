@@ -11,6 +11,7 @@ export type PaginatedAbsences = { items: Absence[]; total: number; page: number;
 export type AbsencesPageParams = {
   schoolClassId?: string;
   search?: string;
+  justified?: boolean;
   page: number;
   pageSize: number;
 };

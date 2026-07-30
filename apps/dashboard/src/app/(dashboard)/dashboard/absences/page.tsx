@@ -5,12 +5,21 @@ import { X } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useAbsencesPaginated, useJustifyAbsence, useJustifyAbsencesBulk } from '@/lib/hooks/useAbsences';
 
 const PAGE_SIZE = 25;
 
+const TABS = [
+  { value: 'unjustified', label: 'Non justifiées' },
+  { value: 'justified', label: 'Justifiées' },
+] as const;
+
+type Tab = (typeof TABS)[number]['value'];
+
 export default function AbsencesPage() {
+  const [tab, setTab] = useState<Tab>('unjustified');
   const justify = useJustifyAbsence();
   const justifyBulk = useJustifyAbsencesBulk();
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
@@ -23,13 +32,17 @@ export default function AbsencesPage() {
   useEffect(() => {
     setPage(1);
     setSelectedIds(new Set());
-  }, [debouncedSearch]);
+  }, [debouncedSearch, tab]);
 
-  const absences = useAbsencesPaginated({ search: debouncedSearch || undefined, page, pageSize: PAGE_SIZE });
+  const absences = useAbsencesPaginated({
+    search: debouncedSearch || undefined,
+    justified: tab === 'justified',
+    page,
+    pageSize: PAGE_SIZE,
+  });
   const rows = absences.data?.items ?? [];
   const total = absences.data?.total ?? 0;
-  const selectableRows = useMemo(() => rows.filter((a) => !a.justified), [rows]);
-  const allSelectableChecked = selectableRows.length > 0 && selectableRows.every((a) => selectedIds.has(a.id));
+  const allChecked = rows.length > 0 && rows.every((a) => selectedIds.has(a.id));
 
   function goToPage(nextPage: number) {
     setPage(nextPage);
@@ -47,9 +60,9 @@ export default function AbsencesPage() {
 
   function toggleSelectAll() {
     setSelectedIds((prev) => {
-      if (allSelectableChecked) return new Set();
+      if (allChecked) return new Set();
       const next = new Set(prev);
-      selectableRows.forEach((a) => next.add(a.id));
+      rows.forEach((a) => next.add(a.id));
       return next;
     });
   }
@@ -73,7 +86,23 @@ export default function AbsencesPage() {
         <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un élève…" />
       </div>
 
-      {selectedIds.size > 0 && (
+      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setTab(t.value)}
+            className={cn(
+              'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+              tab === t.value ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'unjustified' && selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <span className="text-sm font-medium text-emerald-800 whitespace-nowrap">
             {selectedIds.size} absence{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
@@ -107,53 +136,54 @@ export default function AbsencesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs font-medium text-zinc-500">
-              <th className="p-3 w-8">
-                <input
-                  type="checkbox"
-                  checked={allSelectableChecked}
-                  onChange={toggleSelectAll}
-                  disabled={selectableRows.length === 0}
-                  className="h-4 w-4"
-                  aria-label="Tout sélectionner"
-                />
-              </th>
+              {tab === 'unjustified' && (
+                <th className="p-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleSelectAll}
+                    disabled={rows.length === 0}
+                    className="h-4 w-4"
+                    aria-label="Tout sélectionner"
+                  />
+                </th>
+              )}
               <th className="p-3">Élève</th>
               <th className="p-3">Date</th>
-              <th className="p-3">Statut</th>
-              <th className="p-3 text-right">Action</th>
+              {tab === 'justified' ? <th className="p-3">Motif</th> : <th className="p-3">Statut</th>}
+              {tab === 'unjustified' && <th className="p-3 text-right">Action</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {absences.isLoading && <TableRowsSkeleton rows={5} cols={5} />}
+            {absences.isLoading && <TableRowsSkeleton rows={5} cols={tab === 'unjustified' ? 5 : 3} />}
             {!absences.isLoading &&
               rows.map((absence) => (
                 <tr key={absence.id}>
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(absence.id)}
-                      disabled={absence.justified}
-                      onChange={() => toggleSelected(absence.id)}
-                      className="h-4 w-4"
-                    />
-                  </td>
+                  {tab === 'unjustified' && (
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(absence.id)}
+                        onChange={() => toggleSelected(absence.id)}
+                        className="h-4 w-4"
+                      />
+                    </td>
+                  )}
                   <td className="p-3 font-semibold text-zinc-900">
                     {absence.student.firstName} {absence.student.lastName}
                   </td>
                   <td className="p-3 text-zinc-500">{absence.date}</td>
-                  <td className="p-3">
-                    {absence.justified ? (
-                      <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                        Justifiée{absence.justificationReason ? ` — ${absence.justificationReason}` : ''}
-                      </span>
-                    ) : (
+                  {tab === 'justified' ? (
+                    <td className="p-3 text-zinc-500">{absence.justificationReason || '—'}</td>
+                  ) : (
+                    <td className="p-3">
                       <span className="inline-block rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
                         Non justifiée
                       </span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right">
-                    {!absence.justified && (
+                    </td>
+                  )}
+                  {tab === 'unjustified' && (
+                    <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
                         <input
                           value={reasonDrafts[absence.id] ?? ''}
@@ -170,14 +200,14 @@ export default function AbsencesPage() {
                           Justifier
                         </button>
                       </div>
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))}
             {!absences.isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-4 text-sm text-zinc-400">
-                  Aucune absence.
+                <td colSpan={tab === 'unjustified' ? 5 : 3} className="p-4 text-sm text-zinc-400">
+                  {tab === 'unjustified' ? 'Aucune absence à traiter.' : 'Aucune absence justifiée.'}
                 </td>
               </tr>
             )}

@@ -291,4 +291,95 @@ export class StudentsService {
     await this.assertBelongsToSchool(studentId, schoolId);
     return this.prisma.student.update({ where: { id: studentId }, data: { photoUrl } });
   }
+
+  /**
+   * Import en masse — typiquement juste après la création d'une école, pour
+   * peupler ses élèves sans passer par le formulaire un par un. La classe de
+   * chaque ligne est résolue par nom (insensible à la casse) parmi les
+   * classes déjà existantes de l'école : contrairement à Classes.importBulk,
+   * on ne crée jamais de classe à la volée ici — un nom introuvable
+   * (typo, classe pas encore importée) devient une erreur explicite sur la
+   * ligne plutôt qu'une classe fantôme créée silencieusement.
+   * Best-effort ligne par ligne (pas de transaction globale) : un fichier de
+   * 300 lignes avec 2 erreurs importe quand même les 298 bonnes lignes.
+   */
+  async importBulk(rows: Record<string, string>[], schoolId: string) {
+    const classes = await this.prisma.schoolClass.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    const classIdByName = new Map(classes.map((c) => [c.name.trim().toLowerCase(), c.id]));
+    const phonePattern = /^\+?[0-9 ]{8,15}$/;
+
+    let created = 0;
+    const errors: { row: number; message: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const lastName = row.lastName?.trim();
+      const firstName = row.firstName?.trim();
+      const middleName = row.middleName?.trim();
+      const sex = row.sex?.trim().toUpperCase();
+      const dateOfBirth = row.dateOfBirth?.trim();
+      const className = row.schoolClassName?.trim();
+
+      if (!lastName || !firstName) {
+        errors.push({ row: i + 1, message: 'Nom et prénom requis' });
+        continue;
+      }
+      if (sex !== 'M' && sex !== 'F') {
+        errors.push({ row: i + 1, message: 'Sexe invalide (attendu : M ou F)' });
+        continue;
+      }
+      if (!dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+        errors.push({ row: i + 1, message: 'Date de naissance invalide (format attendu : YYYY-MM-DD)' });
+        continue;
+      }
+      if (!className) {
+        errors.push({ row: i + 1, message: 'Classe requise' });
+        continue;
+      }
+      const schoolClassId = classIdByName.get(className.toLowerCase());
+      if (!schoolClassId) {
+        errors.push({ row: i + 1, message: `Classe "${className}" introuvable — importe/crée d'abord les classes` });
+        continue;
+      }
+
+      const parentPhoneNumber = row.parentPhoneNumber?.trim();
+      if (parentPhoneNumber && !phonePattern.test(parentPhoneNumber)) {
+        errors.push({ row: i + 1, message: 'Numéro de téléphone du parent invalide' });
+        continue;
+      }
+
+      try {
+        await this.prisma.student.create({
+          data: {
+            schoolId,
+            schoolClassId,
+            lastName,
+            middleName: middleName || undefined,
+            firstName,
+            sex,
+            dateOfBirth,
+            parents: parentPhoneNumber
+              ? {
+                  create: this.encryptParentInput({
+                    fullName: row.parentFullName?.trim() || `Parent de ${firstName}`,
+                    relationship: row.parentRelationship?.trim() || 'Parent',
+                    phoneNumber: parentPhoneNumber,
+                    secondaryPhoneNumber: row.parentSecondaryPhoneNumber?.trim() || undefined,
+                    address: row.parentAddress?.trim() || undefined,
+                  }),
+                }
+              : undefined,
+          },
+        });
+        created++;
+      } catch {
+        errors.push({ row: i + 1, message: "Erreur lors de la création de l'élève" });
+      }
+    }
+
+    return { created, errors };
+  }
 }

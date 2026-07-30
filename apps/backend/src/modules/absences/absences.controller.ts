@@ -31,6 +31,7 @@ export class AbsencesController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('search') search?: string,
+    @Query('justified') justified?: string,
   ) {
     if (page === undefined) {
       return this.absencesService.list(this.tenant.schoolId, schoolClassId, studentId);
@@ -38,6 +39,7 @@ export class AbsencesController {
     return this.absencesService.listPaginated(this.tenant.schoolId, {
       schoolClassId,
       search,
+      justified: justified === undefined ? undefined : justified === 'true',
       page: Math.max(1, Number(page) || 1),
       pageSize: Math.min(100, Math.max(1, Number(pageSize) || 25)),
     });

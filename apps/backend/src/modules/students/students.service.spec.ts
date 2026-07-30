@@ -173,3 +173,102 @@ describe('StudentsService.provisionParentAccount — hash-based lookup', () => {
     expect(result.reused).toBe(false);
   });
 });
+
+describe('StudentsService.importBulk', () => {
+  it('resolves the class by name (case-insensitive) and creates the student without a parent', async () => {
+    const { service, prisma } = buildService({
+      schoolClass: { findMany: jest.fn().mockResolvedValue([{ id: 'class-1', name: '6e A' }]) },
+      student: { create: jest.fn().mockResolvedValue({ id: 's1' }) },
+    });
+
+    const result = await service.importBulk(
+      [{ lastName: 'Doe', firstName: 'Jane', sex: 'F', dateOfBirth: '2018-01-01', schoolClassName: '6E A' }],
+      'school-1',
+    );
+
+    expect(result).toEqual({ created: 1, errors: [] });
+    expect(prisma.student.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ schoolClassId: 'class-1', parents: undefined }) }),
+    );
+  });
+
+  it('encrypts the parent phone number when parentPhoneNumber is provided', async () => {
+    const { service, prisma } = buildService({
+      schoolClass: { findMany: jest.fn().mockResolvedValue([{ id: 'class-1', name: '6e A' }]) },
+      student: { create: jest.fn().mockResolvedValue({ id: 's1' }) },
+    });
+
+    await service.importBulk(
+      [
+        {
+          lastName: 'Doe',
+          firstName: 'Jane',
+          sex: 'f',
+          dateOfBirth: '2018-01-01',
+          schoolClassName: '6e A',
+          parentPhoneNumber: '+242060000000',
+        },
+      ],
+      'school-1',
+    );
+
+    const persisted = prisma.student.create.mock.calls[0][0].data.parents.create;
+    expect(persisted.phoneNumber).not.toBe('+242060000000');
+    expect(typeof persisted.phoneNumberHash).toBe('string');
+  });
+
+  it('reports row-level errors (missing name, bad sex/date, unknown class, bad phone) without aborting the batch', async () => {
+    const { service, prisma } = buildService({
+      schoolClass: { findMany: jest.fn().mockResolvedValue([{ id: 'class-1', name: '6e A' }]) },
+      student: { create: jest.fn().mockResolvedValue({ id: 's1' }) },
+    });
+
+    const result = await service.importBulk(
+      [
+        { lastName: '', firstName: 'Jane', sex: 'F', dateOfBirth: '2018-01-01', schoolClassName: '6e A' },
+        { lastName: 'Doe', firstName: 'Jane', sex: 'X', dateOfBirth: '2018-01-01', schoolClassName: '6e A' },
+        { lastName: 'Doe', firstName: 'Jane', sex: 'F', dateOfBirth: '2018/01/01', schoolClassName: '6e A' },
+        { lastName: 'Doe', firstName: 'Jane', sex: 'F', dateOfBirth: '2018-01-01', schoolClassName: 'Inconnue' },
+        {
+          lastName: 'Doe',
+          firstName: 'Jane',
+          sex: 'F',
+          dateOfBirth: '2018-01-01',
+          schoolClassName: '6e A',
+          parentPhoneNumber: 'abc',
+        },
+        { lastName: 'Doe', firstName: 'Jane', sex: 'F', dateOfBirth: '2018-01-01', schoolClassName: '6e A' },
+      ],
+      'school-1',
+    );
+
+    expect(result.created).toBe(1);
+    expect(result.errors).toHaveLength(5);
+    expect(result.errors[0]).toEqual({ row: 1, message: 'Nom et prénom requis' });
+    expect(result.errors[3].message).toContain('introuvable');
+  });
+
+  it('keeps going when a row fails at creation time (best-effort, no global transaction)', async () => {
+    const { service, prisma } = buildService({
+      schoolClass: { findMany: jest.fn().mockResolvedValue([{ id: 'class-1', name: '6e A' }]) },
+      student: {
+        create: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('db error'))
+          .mockResolvedValueOnce({ id: 's2' }),
+      },
+    });
+
+    const result = await service.importBulk(
+      [
+        { lastName: 'Doe', firstName: 'Jane', sex: 'F', dateOfBirth: '2018-01-01', schoolClassName: '6e A' },
+        { lastName: 'Doe', firstName: 'John', sex: 'M', dateOfBirth: '2018-01-01', schoolClassName: '6e A' },
+      ],
+      'school-1',
+    );
+
+    expect(result.created).toBe(1);
+    expect(result.errors).toEqual([{ row: 1, message: "Erreur lors de la création de l'élève" }]);
+    expect(prisma.student.create).toHaveBeenCalledTimes(2);
+  });
+});

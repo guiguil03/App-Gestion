@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsOptional, Matches, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsInt, IsOptional, Matches, Max, Min, ValidateNested } from 'class-validator';
 
 import { GeoPointDto } from '@/modules/schools/dto/geo-point.dto';
 
@@ -22,4 +22,16 @@ export class UpdateAttendanceSettingsDto {
   @IsOptional()
   @Matches(TIME_PATTERN, { message: 'Format attendu : HH:mm' })
   scanWindowEnd?: string | null;
+
+  // Heure limite (portail/ENTREE) après laquelle un pointage est considéré en
+  // retard, et à partir de laquelle AbsenceDetectionJob marque absent (+ tolérance).
+  @IsOptional()
+  @Matches(TIME_PATTERN, { message: 'Format attendu : HH:mm' })
+  attendanceReferenceTime?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(180)
+  attendanceToleranceMinutes?: number;
 }

@@ -9,6 +9,8 @@ type FormValues = {
   corners: { lat: string; lng: string }[];
   scanWindowStart: string;
   scanWindowEnd: string;
+  attendanceReferenceTime: string;
+  attendanceToleranceMinutes: string;
 };
 
 const EMPTY_CORNERS = [
@@ -29,7 +31,13 @@ export default function ParametresPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, reset } = useForm<FormValues>({
-    defaultValues: { corners: EMPTY_CORNERS, scanWindowStart: '', scanWindowEnd: '' },
+    defaultValues: {
+      corners: EMPTY_CORNERS,
+      scanWindowStart: '',
+      scanWindowEnd: '',
+      attendanceReferenceTime: '',
+      attendanceToleranceMinutes: '',
+    },
   });
 
   useEffect(() => {
@@ -38,12 +46,24 @@ export default function ParametresPage() {
       corners: toFormCorners(settings.data.geofenceCorners),
       scanWindowStart: settings.data.scanWindowStart ?? '',
       scanWindowEnd: settings.data.scanWindowEnd ?? '',
+      attendanceReferenceTime: settings.data.attendanceReferenceTime,
+      attendanceToleranceMinutes: String(settings.data.attendanceToleranceMinutes),
     });
   }, [settings.data, reset]);
 
   async function onSubmit(values: FormValues) {
     setSaved(false);
     setError(null);
+
+    if (!values.attendanceReferenceTime.trim()) {
+      setError("L'heure de référence est obligatoire.");
+      return;
+    }
+    const tolerance = Number(values.attendanceToleranceMinutes);
+    if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 180) {
+      setError('La tolérance doit être un nombre entier de minutes entre 0 et 180.');
+      return;
+    }
 
     const filledCorners = values.corners.filter((c) => c.lat.trim() !== '' && c.lng.trim() !== '');
     if (filledCorners.length !== 0 && filledCorners.length !== 4) {
@@ -64,6 +84,8 @@ export default function ParametresPage() {
       geofenceCorners,
       scanWindowStart: hasStart ? values.scanWindowStart : null,
       scanWindowEnd: hasEnd ? values.scanWindowEnd : null,
+      attendanceReferenceTime: values.attendanceReferenceTime,
+      attendanceToleranceMinutes: tolerance,
     });
     setSaved(true);
   }
@@ -74,6 +96,35 @@ export default function ParametresPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-6">
         <div>
+          <h2 className="text-sm font-semibold text-zinc-700">Heure de référence et tolérance</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Heure à partir de laquelle un pointage est considéré en retard, et à partir de laquelle un élève sans
+            pointage est marqué absent (après application de la tolérance ci-dessous).
+          </p>
+          <div className="grid grid-cols-2 gap-3 mt-3 max-w-sm">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-500">Heure de référence</label>
+              <input
+                type="time"
+                {...register('attendanceReferenceTime')}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-500">Tolérance (minutes)</label>
+              <input
+                type="number"
+                min={0}
+                max={180}
+                step={1}
+                {...register('attendanceToleranceMinutes')}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-100 pt-4">
           <h2 className="text-sm font-semibold text-zinc-700">Périmètre de l&apos;école</h2>
           <p className="text-xs text-zinc-500 mt-1">
             Coordonnées GPS des 4 coins du terrain de l&apos;école. Un pointage effectué en dehors de ce périmètre

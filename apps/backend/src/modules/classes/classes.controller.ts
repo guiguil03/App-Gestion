@@ -9,6 +9,7 @@ import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { ClassesService } from '@/modules/classes/classes.service';
 import { CreateClassDto } from '@/modules/classes/dto/create-class.dto';
+import { ImportClassesDto } from '@/modules/classes/dto/import-classes.dto';
 import { UpdateClassDto } from '@/modules/classes/dto/update-class.dto';
 
 @Controller('classes')
@@ -30,6 +31,24 @@ export class ClassesController {
   @Roles('DIRECTION', 'ADMIN')
   create(@Body() dto: CreateClassDto) {
     return this.classesService.create(dto, this.tenant.schoolId);
+  }
+
+  // Corps JSON `{ rows: [...] }` — le fichier (CSV/Excel) est parsé côté
+  // dashboard (librairie `xlsx` déjà utilisée pour l'export des rapports),
+  // pas ici : évite d'ajouter une dépendance de parsing de fichier côté backend.
+  @Post('import')
+  @Roles('DIRECTION', 'ADMIN')
+  async importBulk(@Body() dto: ImportClassesDto, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.classesService.importBulk(dto.rows, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'classes.import',
+      metadata: { created: result.created, skipped: result.skipped, errorCount: result.errors.length },
+    });
+    return result;
   }
 
   @Patch(':classId')

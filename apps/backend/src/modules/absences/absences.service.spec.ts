@@ -167,6 +167,20 @@ describe('AbsencesService.listPaginated', () => {
     );
   });
 
+  it('filters by justified status when provided, and omits the filter when absent', async () => {
+    const prisma = buildPrisma();
+    const service = new AbsencesService(prisma, { emit: jest.fn() } as any);
+
+    await service.listPaginated('school-1', { justified: false, page: 1, pageSize: 25 });
+    expect(prisma.absence.findMany.mock.calls[0][0].where.justified).toBe(false);
+
+    await service.listPaginated('school-1', { justified: true, page: 1, pageSize: 25 });
+    expect(prisma.absence.findMany.mock.calls[1][0].where.justified).toBe(true);
+
+    await service.listPaginated('school-1', { page: 1, pageSize: 25 });
+    expect(prisma.absence.findMany.mock.calls[2][0].where.justified).toBeUndefined();
+  });
+
   it('adds a case-insensitive OR filter on the student name when search is provided', async () => {
     const prisma = buildPrisma();
     const service = new AbsencesService(prisma, { emit: jest.fn() } as any);

@@ -86,10 +86,11 @@ export class AbsencesService {
    */
   async listPaginated(
     schoolId: string,
-    opts: { schoolClassId?: string; search?: string; page: number; pageSize: number },
+    opts: { schoolClassId?: string; search?: string; justified?: boolean; page: number; pageSize: number },
   ) {
     const term = opts.search?.trim();
     const where = {
+      justified: opts.justified,
       student: {
         schoolId,
         schoolClassId: opts.schoolClassId,

@@ -25,6 +25,7 @@ import { TenantContext } from '@/common/tenant/tenant-context';
 import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
+import { ImportStudentsDto } from '@/modules/students/dto/import-students.dto';
 import { detectImageExtension } from '@/modules/students/image-signature';
 import { StudentPhotoStorageService } from '@/modules/students/student-photo-storage.service';
 import { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
@@ -88,6 +89,23 @@ export class StudentsController {
   @Roles('DIRECTION', 'ADMIN')
   create(@Body() dto: CreateStudentDto) {
     return this.studentsService.createStudent(dto, this.tenant.schoolId);
+  }
+
+  // Corps JSON `{ rows: [...] }` — fichier CSV/Excel parsé côté dashboard
+  // (voir ClassesController.importBulk pour le même choix d'architecture).
+  @Post('import')
+  @Roles('DIRECTION', 'ADMIN')
+  async importBulk(@Body() dto: ImportStudentsDto, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.studentsService.importBulk(dto.rows, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'students.import',
+      metadata: { created: result.created, errorCount: result.errors.length },
+    });
+    return result;
   }
 
   @Patch(':studentId')

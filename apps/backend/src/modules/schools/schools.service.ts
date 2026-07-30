@@ -20,6 +20,8 @@ export class SchoolsService {
       geofenceCorners: school.geofenceCorners,
       scanWindowStart: school.scanWindowStart,
       scanWindowEnd: school.scanWindowEnd,
+      attendanceReferenceTime: school.attendanceReferenceTime,
+      attendanceToleranceMinutes: school.attendanceToleranceMinutes,
     };
   }
 
