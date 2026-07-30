@@ -46,3 +46,5 @@ export type StudentsPageParams = {
   page: number;
   pageSize: number;
 };
+
+export type ImportStudentsResult = { created: number; errors: { row: number; message: string }[] };

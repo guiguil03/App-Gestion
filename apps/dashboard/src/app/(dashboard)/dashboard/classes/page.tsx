@@ -3,14 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, Pencil, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Trash2, Upload, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImportDialog } from '@/components/ui/import-dialog';
 import {
   useAssignTeacher,
   useClasses,
   useCreateClass,
+  useImportClasses,
   useRemoveClass,
   useUnassignTeacher,
   useUpdateClass,
@@ -29,7 +31,9 @@ export default function ClassesPage() {
   const removeClass = useRemoveClass();
   const assignTeacher = useAssignTeacher();
   const unassignTeacher = useUnassignTeacher();
+  const importClasses = useImportClasses();
   const [deleteTarget, setDeleteTarget] = useState<SchoolClass | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const { register, handleSubmit, reset } = useForm<ClassForm>({ resolver: zodResolver(classSchema) });
 
   async function onSubmit(values: ClassForm) {
@@ -39,7 +43,16 @@ export default function ClassesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-zinc-900">Classes</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-zinc-900">Classes</h1>
+        <button
+          type="button"
+          onClick={() => setIsImportOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          <Upload size={14} /> Importer des classes
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-3 items-end">
         <div className="space-y-1.5">
@@ -81,6 +94,17 @@ export default function ClassesPage() {
         onConfirm={() => {
           if (deleteTarget) removeClass.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
         }}
+      />
+
+      <ImportDialog
+        open={isImportOpen}
+        title="Importer des classes"
+        description="Fichier CSV ou Excel avec les colonnes « name » (nom) et « promotion ». Une classe déjà existante (même nom + promotion) est ignorée."
+        templateHeaders={['name', 'promotion']}
+        templateSampleRow={['6e A', '2026']}
+        templateFilename="modele-import-classes.xlsx"
+        onImport={(rows) => importClasses.mutateAsync(rows)}
+        onClose={() => setIsImportOpen(false)}
       />
     </div>
   );

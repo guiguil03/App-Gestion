@@ -32,6 +32,14 @@ export function useCreateStudent() {
   });
 }
 
+export function useImportStudents() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: Record<string, string>[]) => studentsApi.importBulk(rows),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['students'] }),
+  });
+}
+
 export function useProvisionStudentAccount() {
   return useMutation({ mutationFn: (studentId: string) => studentsApi.provisionAccount(studentId) });
 }

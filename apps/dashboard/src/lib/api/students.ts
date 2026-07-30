@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api/client';
 import type {
   CreateStudentInput,
+  ImportStudentsResult,
   PaginatedStudents,
   ProvisionedAccount,
   ProvisionedParentAccount,
@@ -14,6 +15,8 @@ export const studentsApi = {
     (await apiClient.get<PaginatedStudents>('/students', { params })).data,
   get: async (studentId: string) => (await apiClient.get<Student>(`/students/${studentId}`)).data,
   create: async (input: CreateStudentInput) => (await apiClient.post<Student>('/students', input)).data,
+  importBulk: async (rows: Record<string, string>[]) =>
+    (await apiClient.post<ImportStudentsResult>('/students/import', { rows })).data,
   provisionAccount: async (studentId: string) =>
     (await apiClient.post<ProvisionedAccount>(`/students/${studentId}/account`)).data,
   provisionParentAccount: async (studentId: string, parentGuardianId: string) =>

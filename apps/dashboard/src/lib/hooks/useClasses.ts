@@ -13,6 +13,14 @@ export function useCreateClass() {
   });
 }
 
+export function useImportClasses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: Record<string, string>[]) => classesApi.importBulk(rows),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['classes'] }),
+  });
+}
+
 export function useUpdateClass() {
   const queryClient = useQueryClient();
   return useMutation({

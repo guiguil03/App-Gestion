@@ -4,16 +4,24 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
+import { ImportDialog } from '@/components/ui/import-dialog';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { getErrorMessage } from '@/lib/api/errors';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
-import { useCreateStudent, useProvisionParentAccount, useProvisionStudentAccount, useStudentsPaginated } from '@/lib/hooks/useStudents';
+import {
+  useCreateStudent,
+  useImportStudents,
+  useProvisionParentAccount,
+  useProvisionStudentAccount,
+  useStudentsPaginated,
+} from '@/lib/hooks/useStudents';
 
 const PAGE_SIZE = 25;
 
@@ -45,10 +53,12 @@ export default function ElevesPage() {
 function ElevesPageContent() {
   const classes = useClasses();
   const createStudent = useCreateStudent();
+  const importStudents = useImportStudents();
   const provisionStudentAccount = useProvisionStudentAccount();
   const provisionParentAccount = useProvisionParentAccount();
   const searchParams = useSearchParams();
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [classFilter, setClassFilter] = useState(searchParams.get('classId') ?? '');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -113,7 +123,16 @@ function ElevesPageContent() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-zinc-900">Élèves</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-zinc-900">Élèves</h1>
+        <button
+          type="button"
+          onClick={() => setIsImportOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          <Upload size={14} /> Importer des élèves
+        </button>
+      </div>
 
       {credentials && (
         <CredentialsBanner
@@ -312,6 +331,29 @@ function ElevesPageContent() {
       </div>
 
       <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+
+      <ImportDialog
+        open={isImportOpen}
+        title="Importer des élèves"
+        description="Fichier CSV ou Excel. Colonnes obligatoires : lastName, firstName, sex (M/F), dateOfBirth (YYYY-MM-DD), schoolClassName (nom exact d'une classe déjà créée). Colonnes parent facultatives : parentFullName, parentRelationship, parentPhoneNumber, parentSecondaryPhoneNumber, parentAddress."
+        templateHeaders={[
+          'lastName',
+          'firstName',
+          'middleName',
+          'sex',
+          'dateOfBirth',
+          'schoolClassName',
+          'parentFullName',
+          'parentRelationship',
+          'parentPhoneNumber',
+          'parentSecondaryPhoneNumber',
+          'parentAddress',
+        ]}
+        templateSampleRow={['Doe', 'Jane', '', 'F', '2018-01-01', '6e A', 'Jean Doe', 'Père', '+242060000000', '', '']}
+        templateFilename="modele-import-eleves.xlsx"
+        onImport={(rows) => importStudents.mutateAsync(rows)}
+        onClose={() => setIsImportOpen(false)}
+      />
     </div>
   );
 }
