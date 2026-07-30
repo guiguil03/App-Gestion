@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import { AttendanceSessionsService } from '@/modules/attendance/attendance-sessions.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
@@ -55,6 +56,7 @@ export class SyncService {
     private readonly prisma: PrismaService,
     private readonly attendance: AttendanceService,
     private readonly attendanceSessions: AttendanceSessionsService,
+    private readonly crypto: FieldEncryptionService,
   ) {}
 
   async pull(schoolId: string, user: AuthenticatedUser, lastPulledAt: number): Promise<PullResult> {
@@ -101,6 +103,16 @@ export class SyncService {
         this.prisma.parentGuardian.findMany({ where: { student: studentScope, updatedAt: { gt: since } } }),
       ]);
 
+    // phoneNumber/secondaryPhoneNumber/address sont chiffrés en base (voir
+    // FieldEncryptionService) — déchiffrés avant envoi à l'appareil, qui a
+    // besoin des valeurs en clair (fiche parent consultable/éditable hors ligne).
+    const decryptedParentGuardians = parentGuardians.map((parent) => ({
+      ...parent,
+      phoneNumber: this.crypto.decrypt(parent.phoneNumber),
+      secondaryPhoneNumber: this.crypto.decrypt(parent.secondaryPhoneNumber),
+      address: this.crypto.decrypt(parent.address),
+    }));
+
     return {
       timestamp,
       changes: {
@@ -111,7 +123,7 @@ export class SyncService {
         assigned_classes: firstSyncBucket((currentUser?.assignedClasses ?? []).map(toAssignedClassRow), since),
         attendance_records: createdOnlyBucket(attendanceRecords.map(toAttendanceRecordRow)),
         teacher_signing_keys: splitBucket(signingKeys, since, toTeacherSigningKeyRow),
-        parent_guardians: splitBucket(parentGuardians, since, toParentGuardianRow),
+        parent_guardians: splitBucket(decryptedParentGuardians, since, toParentGuardianRow),
       },
     };
   }

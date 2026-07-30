@@ -1,8 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studentsApi } from '@/lib/api/students';
+import type { StudentsPageParams } from '@/types/students';
 
 export function useStudents() {
   return useQuery({ queryKey: ['students'], queryFn: studentsApi.list });
+}
+
+/** Utilisée par la page Élèves (pagination + recherche côté serveur). Le
+ * roster complet (useStudents) reste utilisé ailleurs (mobile, filtres). */
+export function useStudentsPaginated(params: StudentsPageParams) {
+  return useQuery({
+    queryKey: ['students', 'paginated', params],
+    queryFn: () => studentsApi.listPaginated(params),
+    placeholderData: (previousData) => previousData,
+  });
 }
 
 export function useStudent(studentId: string | null) {

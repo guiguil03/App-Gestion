@@ -1,22 +1,28 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
-import { useAbsences, useJustifyAbsence } from '@/lib/hooks/useAbsences';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
+import { useAbsencesPaginated, useJustifyAbsence } from '@/lib/hooks/useAbsences';
+
+const PAGE_SIZE = 25;
 
 export default function AbsencesPage() {
-  const absences = useAbsences();
   const justify = useJustifyAbsence();
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search);
 
-  const filtered = useMemo(() => {
-    const all = absences.data ?? [];
-    const term = search.trim().toLowerCase();
-    if (!term) return all;
-    return all.filter((a) => `${a.student.firstName} ${a.student.lastName}`.toLowerCase().includes(term));
-  }, [absences.data, search]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const absences = useAbsencesPaginated({ search: debouncedSearch || undefined, page, pageSize: PAGE_SIZE });
+  const rows = absences.data?.items ?? [];
+  const total = absences.data?.total ?? 0;
 
   return (
     <div className="space-y-6">
@@ -38,7 +44,7 @@ export default function AbsencesPage() {
           <tbody className="divide-y divide-slate-100">
             {absences.isLoading && <TableRowsSkeleton rows={5} cols={4} />}
             {!absences.isLoading &&
-              filtered.map((absence) => (
+              rows.map((absence) => (
                 <tr key={absence.id}>
                   <td className="p-3 font-semibold text-zinc-900">
                     {absence.student.firstName} {absence.student.lastName}
@@ -77,7 +83,7 @@ export default function AbsencesPage() {
                   </td>
                 </tr>
               ))}
-            {!absences.isLoading && filtered.length === 0 && (
+            {!absences.isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-sm text-zinc-400">
                   Aucune absence.
@@ -87,6 +93,8 @@ export default function AbsencesPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
     </div>
   );
 }

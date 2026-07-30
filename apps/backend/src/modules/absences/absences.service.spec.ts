@@ -10,6 +10,7 @@ function buildPrisma(overrides: Record<string, any> = {}) {
     attendanceRecord: { findMany: jest.fn().mockResolvedValue([]) },
     absence: {
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       upsert: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
@@ -119,5 +120,48 @@ describe('AbsencesService.justify', () => {
     await expect(
       service.justify('absence-1', 'school-1', 'Maladie', { role: 'PARENT', userId: 'parent-1' }),
     ).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('AbsencesService.listPaginated', () => {
+  it('paginates and scopes to the school/class via the nested student filter', async () => {
+    const prisma = buildPrisma({
+      absence: { findMany: jest.fn().mockResolvedValue([{ id: 'a1' }]), count: jest.fn().mockResolvedValue(60) },
+    });
+    const service = new AbsencesService(prisma, { emit: jest.fn() } as any);
+
+    const result = await service.listPaginated('school-1', { schoolClassId: 'class-1', page: 3, pageSize: 20 });
+
+    expect(result).toEqual({ items: [{ id: 'a1' }], total: 60, page: 3, pageSize: 20 });
+    expect(prisma.absence.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { student: { schoolId: 'school-1', schoolClassId: 'class-1' } },
+        skip: 40,
+        take: 20,
+      }),
+    );
+  });
+
+  it('adds a case-insensitive OR filter on the student name when search is provided', async () => {
+    const prisma = buildPrisma();
+    const service = new AbsencesService(prisma, { emit: jest.fn() } as any);
+
+    await service.listPaginated('school-1', { search: 'ngo', page: 1, pageSize: 25 });
+
+    expect(prisma.absence.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          student: {
+            schoolId: 'school-1',
+            schoolClassId: undefined,
+            OR: [
+              { lastName: { contains: 'ngo', mode: 'insensitive' } },
+              { firstName: { contains: 'ngo', mode: 'insensitive' } },
+              { middleName: { contains: 'ngo', mode: 'insensitive' } },
+            ],
+          },
+        },
+      }),
+    );
   });
 });

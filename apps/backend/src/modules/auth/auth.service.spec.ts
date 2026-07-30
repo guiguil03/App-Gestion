@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from '@/modules/auth/auth.service';
+import { LoginThrottleService } from '@/modules/auth/login-throttle.service';
 
 function buildDeps(overrides: Record<string, any> = {}) {
   const prisma = {
@@ -9,8 +10,9 @@ function buildDeps(overrides: Record<string, any> = {}) {
   } as any;
   const jwt = { sign: jest.fn(), verifyAsync: jest.fn() } as any;
   const audit = { log: jest.fn() } as any;
-  const service = new AuthService(prisma, jwt, audit);
-  return { service, prisma, jwt, audit };
+  const loginThrottle = new LoginThrottleService();
+  const service = new AuthService(prisma, jwt, audit, loginThrottle);
+  return { service, prisma, jwt, audit, loginThrottle };
 }
 
 describe('AuthService.changePassword', () => {
@@ -83,5 +85,44 @@ describe('AuthService.login — audit', () => {
       username: 'ghost',
       metadata: { reason: 'unknown_username' },
     });
+  });
+});
+
+describe('AuthService.login — brute-force throttle', () => {
+  it('rejects with 429 after 5 failed attempts for the same username within the window', async () => {
+    const { service } = buildDeps({ user: { findUnique: jest.fn().mockResolvedValue(null) } });
+
+    for (let i = 0; i < 5; i++) {
+      await expect(service.login('ghost', 'wrong')).rejects.toThrow('Identifiants incorrects');
+    }
+
+    await expect(service.login('ghost', 'wrong')).rejects.toThrow('Trop de tentatives');
+  });
+
+  it('does not throttle a different username after another one gets locked out', async () => {
+    const { service } = buildDeps({ user: { findUnique: jest.fn().mockResolvedValue(null) } });
+
+    for (let i = 0; i < 6; i++) {
+      await expect(service.login('attacker-target', 'wrong')).rejects.toThrow();
+    }
+
+    await expect(service.login('someone-else', 'wrong')).rejects.toThrow('Identifiants incorrects');
+  });
+
+  it('resets the failure count on a successful login', async () => {
+    const passwordHash = await bcrypt.hash('correct-password', 10);
+    const { service, loginThrottle } = buildDeps({
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'user-1', username: 'direction1', role: 'DIRECTION', schoolId: 'school-1', studentId: null, passwordHash }),
+      },
+    });
+
+    loginThrottle.registerFailure('direction1');
+    loginThrottle.registerFailure('direction1');
+    await service.login('direction1', 'correct-password');
+
+    expect(() => loginThrottle.assertNotLocked('direction1')).not.toThrow();
   });
 });

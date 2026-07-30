@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { NotificationChannel } from '@prisma/client';
 
+import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import { ABSENCE_MARKED_EVENT, AbsenceMarkedEvent } from '@/modules/absences/events/absence-marked.event';
 import { ATTENDANCE_RECORDED_EVENT, AttendanceRecordedEvent } from '@/modules/attendance/events/attendance-recorded.event';
@@ -16,6 +17,7 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly sms: SmsProvider,
     private readonly push: PushProvider,
+    private readonly crypto: FieldEncryptionService,
   ) {}
 
   /**
@@ -83,7 +85,7 @@ export class NotificationsService {
 
     await Promise.all([
       ...smsRecipients.map((parent) =>
-        this.sms.send(parent.phoneNumber, message).catch((error: unknown) => {
+        this.sms.send(this.crypto.decrypt(parent.phoneNumber), message).catch((error: unknown) => {
           this.logger.warn(`Échec d'envoi SMS pour le parent ${parent.id}`, error);
         }),
       ),

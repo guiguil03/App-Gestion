@@ -5,6 +5,8 @@ fiches élèves, cartes QR, pointage (par carte ou par session), suivi parent.
 L'application mobile fonctionne **hors ligne en priorité** (WatermelonDB) avec
 synchronisation différée vers un backend central.
 
+Documentation complémentaire : [cahier des charges](docs/Cahier_des_charges_presence_scolaire-1.pdf) · [manuel utilisateur](docs/manuel-utilisateur.md).
+
 ## Structure du monorepo
 
 ```
@@ -148,8 +150,10 @@ l'erreur `RNGetRandomValues could not be found`.
   pour un feedback immédiat même hors ligne, revérifié côté serveur à la
   synchro). Désactivé par défaut tant que l'école n'a pas configuré son
   périmètre.
-- Notifications : SMS (provider mock, passerelle opérateur réelle non
-  branchée) + push Expo, tous deux filtrés précisément par fiche parent
+- Notifications : SMS (Twilio — voir `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/
+  `TWILIO_FROM_NUMBER` dans `.env.example` ; sans ces variables,
+  `MockSmsProvider` prend le relais et logue le SMS au lieu de l'envoyer) +
+  push Expo, tous deux filtrés précisément par fiche parent
   (`ParentGuardian.notificationChannel`) via le compte provisionné pour
   cette fiche (`ParentGuardian.userId`).
 - Photos élève : stockage Supabase Storage (bucket `student-photos`, clé

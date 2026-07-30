@@ -42,10 +42,27 @@ export class StudentsController {
     private readonly audit: AuditService,
   ) {}
 
+  // Rétro-compatible : sans `page`, renvoie le tableau complet comme avant
+  // (utilisé par l'app mobile et par les filtres qui ont besoin du roster
+  // entier). Avec `page`, bascule sur la pagination + recherche serveur
+  // (utilisé par la page Élèves du dashboard).
   @Get()
   @Roles('DIRECTION', 'ADMIN')
-  list(@Query('schoolClassId') schoolClassId?: string) {
-    return this.studentsService.listStudents(this.tenant.schoolId, schoolClassId);
+  list(
+    @Query('schoolClassId') schoolClassId?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    if (page === undefined) {
+      return this.studentsService.listStudents(this.tenant.schoolId, schoolClassId);
+    }
+    return this.studentsService.listStudentsPaginated(this.tenant.schoolId, {
+      schoolClassId,
+      search,
+      page: Math.max(1, Number(page) || 1),
+      pageSize: Math.min(100, Math.max(1, Number(pageSize) || 25)),
+    });
   }
 
   // Déclaré avant `:studentId` — sinon "me" serait capturé comme un id.

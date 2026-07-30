@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed": "ts-node prisma/seed.ts",
+    "backfill:encrypt-parent-guardians": "ts-node prisma/backfill-encrypt-parent-guardians.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },

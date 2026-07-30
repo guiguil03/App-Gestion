@@ -1,8 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { absencesApi } from '@/lib/api/absences';
+import type { AbsencesPageParams } from '@/types/absences';
 
 export function useAbsences() {
   return useQuery({ queryKey: ['absences'], queryFn: absencesApi.list });
+}
+
+export function useAbsencesPaginated(params: AbsencesPageParams) {
+  return useQuery({
+    queryKey: ['absences', 'paginated', params],
+    queryFn: () => absencesApi.listPaginated(params),
+    placeholderData: (previousData) => previousData,
+  });
 }
 
 export function useStudentAbsences(studentId: string | null) {

@@ -1,17 +1,21 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
+import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { getErrorMessage } from '@/lib/api/errors';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { useCreateStudent, useProvisionParentAccount, useProvisionStudentAccount, useStudents } from '@/lib/hooks/useStudents';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
+import { useCreateStudent, useProvisionParentAccount, useProvisionStudentAccount, useStudentsPaginated } from '@/lib/hooks/useStudents';
+
+const PAGE_SIZE = 25;
 
 const studentSchema = z.object({
   lastName: z.string().min(1, 'Nom requis'),
@@ -39,7 +43,6 @@ export default function ElevesPage() {
 }
 
 function ElevesPageContent() {
-  const students = useStudents();
   const classes = useClasses();
   const createStudent = useCreateStudent();
   const provisionStudentAccount = useProvisionStudentAccount();
@@ -48,6 +51,8 @@ function ElevesPageContent() {
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
   const [classFilter, setClassFilter] = useState(searchParams.get('classId') ?? '');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search);
   const {
     register,
     handleSubmit,
@@ -58,15 +63,20 @@ function ElevesPageContent() {
     defaultValues: { sex: 'M' },
   });
 
-  const filteredStudents = useMemo(() => {
-    const all = students.data ?? [];
-    const byClass = classFilter ? all.filter((s) => s.schoolClassId === classFilter) : all;
-    const term = search.trim().toLowerCase();
-    if (!term) return byClass;
-    return byClass.filter((s) =>
-      [s.lastName, s.middleName, s.firstName].filter(Boolean).join(' ').toLowerCase().includes(term),
-    );
-  }, [students.data, classFilter, search]);
+  // Revenir à la page 1 dès que le filtre change, sinon on peut se retrouver
+  // sur une page vide (ex. page 3 alors que la recherche ne renvoie qu'1 page).
+  useEffect(() => {
+    setPage(1);
+  }, [classFilter, debouncedSearch]);
+
+  const students = useStudentsPaginated({
+    schoolClassId: classFilter || undefined,
+    search: debouncedSearch || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const studentsList = students.data?.items ?? [];
+  const total = students.data?.total ?? 0;
 
   async function onSubmit(values: StudentForm) {
     await createStudent.mutateAsync({
@@ -195,7 +205,7 @@ function ElevesPageContent() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-zinc-700">
-          {classFilter ? (classes.data ?? []).find((c) => c.id === classFilter)?.name : 'Toutes les classes'} ({filteredStudents.length})
+          {classFilter ? (classes.data ?? []).find((c) => c.id === classFilter)?.name : 'Toutes les classes'} ({total})
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un élève…" />
@@ -227,7 +237,7 @@ function ElevesPageContent() {
           <tbody className="divide-y divide-slate-100">
             {students.isLoading && <TableRowsSkeleton rows={5} cols={4} />}
             {!students.isLoading &&
-              filteredStudents.map((student) => {
+              studentsList.map((student) => {
                 const fullName = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
                 return (
                   <tr key={student.id}>
@@ -290,7 +300,7 @@ function ElevesPageContent() {
                   </tr>
                 );
               })}
-            {!students.isLoading && filteredStudents.length === 0 && (
+            {!students.isLoading && studentsList.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-sm text-zinc-400">
                   Aucun élève.
@@ -300,6 +310,8 @@ function ElevesPageContent() {
           </tbody>
         </table>
       </div>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
     </div>
   );
 }

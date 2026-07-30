@@ -1,7 +1,9 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import type { ParentGuardian } from '@prisma/client';
 
 import { generatePassword, generateUniqueUsername } from '@/common/accounts/generate-credentials';
+import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import type { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
 import type { UpdateStudentDto } from '@/modules/students/dto/update-student.dto';
@@ -21,7 +23,40 @@ export type ProvisionedParentAccount = {
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: FieldEncryptionService,
+  ) {}
+
+  /** phoneNumber/secondaryPhoneNumber/address sont chiffrés en base (voir FieldEncryptionService) — déchiffrés juste avant de quitter le service. */
+  private decryptParent(parent: ParentGuardian): ParentGuardian {
+    return {
+      ...parent,
+      phoneNumber: this.crypto.decrypt(parent.phoneNumber),
+      secondaryPhoneNumber: this.crypto.decrypt(parent.secondaryPhoneNumber),
+      address: this.crypto.decrypt(parent.address),
+    };
+  }
+
+  private decryptStudent<T extends { parents: ParentGuardian[] }>(student: T): T {
+    return { ...student, parents: student.parents.map((p) => this.decryptParent(p)) };
+  }
+
+  /**
+   * Chiffre les champs sensibles avant écriture + calcule le hash de
+   * recherche exacte (voir ParentGuardian.phoneNumberHash). Générique pour
+   * préserver les autres champs de `parent` (fullName, relationship,
+   * notificationChannel...) dans le type de retour, quel que soit l'appelant.
+   */
+  private encryptParentInput<T extends { phoneNumber: string; secondaryPhoneNumber?: string; address?: string }>(parent: T) {
+    return {
+      ...parent,
+      phoneNumber: this.crypto.encrypt(parent.phoneNumber),
+      phoneNumberHash: this.crypto.hashForLookup(parent.phoneNumber),
+      secondaryPhoneNumber: this.crypto.encrypt(parent.secondaryPhoneNumber),
+      address: this.crypto.encrypt(parent.address),
+    };
+  }
 
   /** Empêche un pointage ou une action sur un élève hors du périmètre de l'école du user courant. */
   async assertBelongsToSchool(studentId: string, schoolId: string) {
@@ -88,13 +123,20 @@ export class StudentsService {
       throw new NotFoundException('Parent introuvable pour cet élève');
     }
 
-    const existingAccount = await this.prisma.user.findFirst({
-      where: {
-        role: 'PARENT',
-        schoolId,
-        children: { some: { parents: { some: { phoneNumber: parentGuardian.phoneNumber } } } },
-      },
-    });
+    // `phoneNumber` est chiffré (IV aléatoire) : la comparaison d'égalité se
+    // fait sur `phoneNumberHash` (HMAC déterministe), jamais sur le
+    // ciphertext. Une fiche pas encore migrée (hash absent, cf. script de
+    // backfill) ne peut matcher aucune fiche existante — on crée alors un
+    // nouveau compte plutôt que de risquer un faux positif sur `null`.
+    const existingAccount = parentGuardian.phoneNumberHash
+      ? await this.prisma.user.findFirst({
+          where: {
+            role: 'PARENT',
+            schoolId,
+            children: { some: { parents: { some: { phoneNumberHash: parentGuardian.phoneNumberHash } } } },
+          },
+        })
+      : null;
 
     if (existingAccount) {
       await this.prisma.$transaction([
@@ -126,19 +168,62 @@ export class StudentsService {
   }
 
   async listStudents(schoolId: string, schoolClassId?: string) {
-    return this.prisma.student.findMany({
+    const students = await this.prisma.student.findMany({
       where: { schoolId, schoolClassId, deletedAt: null },
       include: { parents: true, schoolClass: true },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
+    return students.map((s) => this.decryptStudent(s));
+  }
+
+  /**
+   * Variante paginée + recherche serveur de listStudents — utilisée par la
+   * page Élèves du dashboard une fois le nombre d'élèves trop grand pour
+   * charger la liste complète à chaque frappe. `listStudents` reste
+   * inchangée (utilisée par l'app mobile et le filtre par élève de
+   * Rapports/Historique, qui ont besoin du roster complet).
+   */
+  async listStudentsPaginated(
+    schoolId: string,
+    opts: { schoolClassId?: string; search?: string; page: number; pageSize: number },
+  ) {
+    const term = opts.search?.trim();
+    const where = {
+      schoolId,
+      schoolClassId: opts.schoolClassId,
+      deletedAt: null,
+      ...(term
+        ? {
+            OR: [
+              { lastName: { contains: term, mode: 'insensitive' as const } },
+              { firstName: { contains: term, mode: 'insensitive' as const } },
+              { middleName: { contains: term, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.student.findMany({
+        where,
+        include: { parents: true, schoolClass: true },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        skip: (opts.page - 1) * opts.pageSize,
+        take: opts.pageSize,
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return { items: items.map((s) => this.decryptStudent(s)), total, page: opts.page, pageSize: opts.pageSize };
   }
 
   async getStudent(studentId: string, schoolId: string) {
     await this.assertBelongsToSchool(studentId, schoolId);
-    return this.prisma.student.findUniqueOrThrow({
+    const student = await this.prisma.student.findUniqueOrThrow({
       where: { id: studentId },
       include: { parents: true, schoolClass: true },
     });
+    return this.decryptStudent(student);
   }
 
   async createStudent(dto: CreateStudentDto, schoolId: string) {
@@ -149,7 +234,7 @@ export class StudentsService {
       throw new NotFoundException("Classe introuvable dans cette école");
     }
 
-    return this.prisma.student.create({
+    const student = await this.prisma.student.create({
       data: {
         schoolId,
         schoolClassId: dto.schoolClassId,
@@ -158,21 +243,11 @@ export class StudentsService {
         firstName: dto.firstName,
         sex: dto.sex,
         dateOfBirth: dto.dateOfBirth,
-        parents: dto.parent
-          ? {
-              create: {
-                fullName: dto.parent.fullName,
-                relationship: dto.parent.relationship,
-                phoneNumber: dto.parent.phoneNumber,
-                secondaryPhoneNumber: dto.parent.secondaryPhoneNumber,
-                address: dto.parent.address,
-                notificationChannel: dto.parent.notificationChannel,
-              },
-            }
-          : undefined,
+        parents: dto.parent ? { create: this.encryptParentInput(dto.parent) } : undefined,
       },
       include: { parents: true, schoolClass: true },
     });
+    return this.decryptStudent(student);
   }
 
   async updateStudent(studentId: string, dto: UpdateStudentDto, schoolId: string) {
@@ -189,14 +264,15 @@ export class StudentsService {
 
     if (dto.parent) {
       const existingParent = await this.prisma.parentGuardian.findFirst({ where: { studentId } });
+      const encrypted = this.encryptParentInput(dto.parent);
       if (existingParent) {
-        await this.prisma.parentGuardian.update({ where: { id: existingParent.id }, data: { ...dto.parent } });
+        await this.prisma.parentGuardian.update({ where: { id: existingParent.id }, data: encrypted });
       } else {
-        await this.prisma.parentGuardian.create({ data: { studentId, ...dto.parent } });
+        await this.prisma.parentGuardian.create({ data: { studentId, ...encrypted } });
       }
     }
 
-    return this.prisma.student.update({
+    const student = await this.prisma.student.update({
       where: { id: studentId },
       data: {
         lastName: dto.lastName,
@@ -208,6 +284,7 @@ export class StudentsService {
       },
       include: { parents: true, schoolClass: true },
     });
+    return this.decryptStudent(student);
   }
 
   async setPhoto(studentId: string, schoolId: string, photoUrl: string) {

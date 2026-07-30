@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 
 import { PrismaService } from '@/database/prisma.service';
 import { AuditService } from '@/modules/audit/audit.service';
+import { LoginThrottleService } from '@/modules/auth/login-throttle.service';
 import type { AuthenticatedUser, Role } from '@/modules/auth/types';
 
 export type LoginResult = {
@@ -22,11 +23,15 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly audit: AuditService,
+    private readonly loginThrottle: LoginThrottleService,
   ) {}
 
   async login(username: string, password: string): Promise<LoginResult> {
+    this.loginThrottle.assertNotLocked(username);
+
     const user = await this.prisma.user.findUnique({ where: { username } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      this.loginThrottle.registerFailure(username);
       await this.audit.log({
         action: 'auth.login.failure',
         username,
@@ -35,6 +40,7 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
+    this.loginThrottle.reset(username);
     await this.audit.log({
       schoolId: user.schoolId,
       userId: user.id,

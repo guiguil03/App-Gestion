@@ -37,3 +37,12 @@ export type CreateStudentInput = {
 
 export type ProvisionedAccount = { username: string; password: string };
 export type ProvisionedParentAccount = { username: string; password: string | null; reused: boolean };
+
+export type PaginatedStudents = { items: Student[]; total: number; page: number; pageSize: number };
+
+export type StudentsPageParams = {
+  schoolClassId?: string;
+  search?: string;
+  page: number;
+  pageSize: number;
+};

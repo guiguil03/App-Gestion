@@ -17,10 +17,27 @@ export class AbsencesController {
     private readonly tenant: TenantContext,
   ) {}
 
+  // Rétro-compatible : sans `page`, renvoie le tableau complet comme avant
+  // (utilisé par la fiche élève via `studentId`). Avec `page`, bascule sur
+  // la pagination + recherche serveur (page Absences du dashboard).
   @Get()
   @Roles('DIRECTION', 'ADMIN')
-  list(@Query('schoolClassId') schoolClassId?: string, @Query('studentId') studentId?: string) {
-    return this.absencesService.list(this.tenant.schoolId, schoolClassId, studentId);
+  list(
+    @Query('schoolClassId') schoolClassId?: string,
+    @Query('studentId') studentId?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    if (page === undefined) {
+      return this.absencesService.list(this.tenant.schoolId, schoolClassId, studentId);
+    }
+    return this.absencesService.listPaginated(this.tenant.schoolId, {
+      schoolClassId,
+      search,
+      page: Math.max(1, Number(page) || 1),
+      pageSize: Math.min(100, Math.max(1, Number(pageSize) || 25)),
+    });
   }
 
   @Patch(':absenceId/justify')

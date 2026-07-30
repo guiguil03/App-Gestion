@@ -79,6 +79,46 @@ export class AbsencesService {
     });
   }
 
+  /**
+   * Variante paginée + recherche serveur de `list` — utilisée par la page
+   * Absences du dashboard (vue école entière, peut grossir vite). `list`
+   * reste inchangée pour la fiche élève (une seule liste, jamais géante).
+   */
+  async listPaginated(
+    schoolId: string,
+    opts: { schoolClassId?: string; search?: string; page: number; pageSize: number },
+  ) {
+    const term = opts.search?.trim();
+    const where = {
+      student: {
+        schoolId,
+        schoolClassId: opts.schoolClassId,
+        ...(term
+          ? {
+              OR: [
+                { lastName: { contains: term, mode: 'insensitive' as const } },
+                { firstName: { contains: term, mode: 'insensitive' as const } },
+                { middleName: { contains: term, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.absence.findMany({
+        where,
+        include: { student: true },
+        orderBy: { date: 'desc' },
+        skip: (opts.page - 1) * opts.pageSize,
+        take: opts.pageSize,
+      }),
+      this.prisma.absence.count({ where }),
+    ]);
+
+    return { items, total, page: opts.page, pageSize: opts.pageSize };
+  }
+
   async justify(
     absenceId: string,
     schoolId: string,

@@ -125,7 +125,13 @@ model ParentGuardian {
   studentId            String              @map("student_id")
   fullName             String              @map("full_name")
   relationship         String
+  // Chiffrées (AES-256-GCM, voir FieldEncryptionService) — jamais lisibles
+  // directement en base. `phoneNumberHash` est l'index de recherche exacte
+  // dérivé de `phoneNumber` (HMAC déterministe), utilisé par
+  // StudentsService.provisionParentAccount pour retrouver un compte parent
+  // existant par téléphone sans avoir à déchiffrer toute la table.
   phoneNumber          String              @map("phone_number")
+  phoneNumberHash      String?             @map("phone_number_hash")
   secondaryPhoneNumber String?             @map("secondary_phone_number")
   address              String?
   notificationChannel  NotificationChannel @default(BOTH) @map("notification_channel")
@@ -143,6 +149,7 @@ model ParentGuardian {
 
   @@index([studentId])
   @@index([userId])
+  @@index([phoneNumberHash])
   @@map("parent_guardians")
 }
 

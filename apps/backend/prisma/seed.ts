@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { AttendanceDirection, Checkpoint, NotificationChannel, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
+import { FieldEncryptionService } from '../src/common/crypto/field-encryption';
 import { CardSigningService } from '../src/modules/cards/card-signing.service';
 import { StudentsService } from '../src/modules/students/students.service';
 
@@ -10,7 +11,7 @@ const prisma = new PrismaClient();
 const signing = new CardSigningService();
 // `StudentsService` n'a besoin que de l'API PrismaClient (pas des hooks de
 // cycle de vie Nest ajoutés par PrismaService) : le cast est sûr ici.
-const students = new StudentsService(prisma as never);
+const students = new StudentsService(prisma as never, new FieldEncryptionService());
 
 const HISTORY_DAYS = 14;
 const STUDENTS_PER_CLASS = 7;
