@@ -8,6 +8,7 @@
     "@noble/hashes": "^1.6.0",
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-community/netinfo": "12.0.1",
+    "@sentry/react-native": "~7.11.0",
     "@tanstack/react-query": "^5.62.0",
     "axios": "^1.7.9",
     "buffer": "^6.0.3",

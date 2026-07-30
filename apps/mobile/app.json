@@ -60,6 +60,13 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "guigui-3o",
+          "project": "presenceconnect"
+        }
       ]
     ],
     "experiments": {

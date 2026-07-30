@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { DatabaseProvider } from '@nozbe/watermelondb/react';
+import * as Sentry from '@sentry/react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import type { ReactNode } from 'react';
@@ -12,6 +13,14 @@ import { SyncStatusProvider } from '@/features/sync/SyncStatusProvider';
 import { Colors } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync();
+
+// DSN absent = SDK désactivé silencieusement (voir EXPO_PUBLIC_SENTRY_DSN
+// dans .env — même projet Sentry que le backend/dashboard).
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  environment: __DEV__ ? 'development' : 'production',
+  tracesSampleRate: 0.1,
+});
 
 // React Navigation a son propre thème par défaut (DarkTheme.colors.background
 // est un noir quasi pur, indépendant de notre theme.ts) — on le remplace par
@@ -47,7 +56,7 @@ function MaybeDatabaseProvider({ children }: { children: ReactNode }) {
   return <DatabaseProvider database={database}>{children}</DatabaseProvider>;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -66,3 +75,5 @@ export default function RootLayout() {
     </MaybeDatabaseProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

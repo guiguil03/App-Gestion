@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 
 import { SmsProvider, type SmsSendResult } from '@/modules/notifications/providers/sms-provider';
 
@@ -56,12 +57,15 @@ export class TwilioSmsProvider extends SmsProvider {
 
       if (!response.ok) {
         this.logger.warn(`Échec d'envoi SMS à ${normalizedTo} (HTTP ${response.status}) : ${data?.message ?? 'erreur inconnue'}`);
+        Sentry.metrics.count('sms.delivery', 1, { attributes: { status: 'failed' } });
         return { status: 'failed' };
       }
 
+      Sentry.metrics.count('sms.delivery', 1, { attributes: { status: 'sent' } });
       return { status: 'sent', providerId: data?.sid };
     } catch (error) {
       this.logger.warn(`Échec d'envoi SMS à ${normalizedTo}`, error);
+      Sentry.metrics.count('sms.delivery', 1, { attributes: { status: 'failed' } });
       return { status: 'failed' };
     }
   }

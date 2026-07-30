@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Checkpoint, AttendanceDirection, Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/nestjs';
 
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
@@ -64,12 +65,14 @@ export class AttendanceService {
       const hasCoords = typeof raw.latitude === 'number' && typeof raw.longitude === 'number';
       if (!hasCoords || !isWithinGeofence(corners, { lat: raw.latitude as number, lng: raw.longitude as number })) {
         this.logger.warn(`Pointage ${raw.id} rejeté : hors du périmètre de l'école ${school.id}`);
+        Sentry.metrics.count('attendance.rejected', 1, { attributes: { reason: 'geofence' } });
         return null;
       }
     }
     if (school.scanWindowStart && school.scanWindowEnd) {
       if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, recordedAt)) {
         this.logger.warn(`Pointage ${raw.id} rejeté : hors de la plage horaire de pointage de l'école ${school.id}`);
+        Sentry.metrics.count('attendance.rejected', 1, { attributes: { reason: 'scan_window' } });
         return null;
       }
     }
@@ -120,6 +123,9 @@ export class AttendanceService {
     }
 
     this.logger.log(`Pointage ${record.id} enregistré pour l'élève ${student.id} (retard=${isLate})`);
+    Sentry.metrics.count('attendance.recorded', 1, {
+      attributes: { source: 'sync', is_late: String(isLate) },
+    });
 
     // Un pointage PORTAIL/ENTREE (même tardif) annule une absence déjà
     // marquée par AbsenceDetectionJob pour ce jour — un retard n'est pas une
@@ -169,6 +175,9 @@ export class AttendanceService {
     });
 
     this.logger.log(`Pointage manuel ${record.id} enregistré pour l'élève ${student.id} (retard=${opts.isLate})`);
+    Sentry.metrics.count('attendance.recorded', 1, {
+      attributes: { source: 'manual', is_late: String(opts.isLate) },
+    });
 
     await this.prisma.absence.deleteMany({ where: { studentId: student.id, date: dateKey(recordedAt) } });
 

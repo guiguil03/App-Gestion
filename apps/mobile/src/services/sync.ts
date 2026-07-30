@@ -1,6 +1,7 @@
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import { synchronize } from '@nozbe/watermelondb/sync';
+import * as Sentry from '@sentry/react-native';
 
 import { apiClient } from '@/api/client';
 import AttendanceRecord from '@/db/models/AttendanceRecord';
@@ -66,8 +67,23 @@ async function registerSigningKeyIfTeacher(): Promise<void> {
  * lui-même la persistance de `lastPulledAt`, pas besoin de la stocker nous-mêmes.
  */
 export async function runSync(database: Database): Promise<void> {
-  await registerSigningKeyIfTeacher();
+  const startedAt = Date.now();
 
+  try {
+    await registerSigningKeyIfTeacher();
+    await synchronizeDatabase(database);
+    Sentry.metrics.distribution('mobile.sync_duration_ms', Date.now() - startedAt, {
+      attributes: { status: 'success' },
+    });
+  } catch (error) {
+    Sentry.metrics.distribution('mobile.sync_duration_ms', Date.now() - startedAt, {
+      attributes: { status: 'failed' },
+    });
+    throw error;
+  }
+}
+
+async function synchronizeDatabase(database: Database): Promise<void> {
   await synchronize({
     database,
     pullChanges: async ({ lastPulledAt }) => {
