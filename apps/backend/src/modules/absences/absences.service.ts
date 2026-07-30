@@ -140,4 +140,19 @@ export class AbsencesService {
       data: { justified: true, justificationReason: reason },
     });
   }
+
+  /**
+   * Justification groupée (dashboard uniquement — DIRECTION/ADMIN, pas de
+   * cas d'usage PARENT pour ça). `updateMany` scope directement par école
+   * via la relation `student` : un id qui n'appartient pas à l'école ou qui
+   * n'existe pas est silencieusement ignoré plutôt que de faire échouer tout
+   * le lot, et ne fuite jamais vers une autre école.
+   */
+  async justifyBulk(absenceIds: string[], schoolId: string, reason: string): Promise<{ count: number }> {
+    const result = await this.prisma.absence.updateMany({
+      where: { id: { in: absenceIds }, student: { schoolId } },
+      data: { justified: true, justificationReason: reason },
+    });
+    return { count: result.count };
+  }
 }

@@ -1,28 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
-import { useAbsencesPaginated, useJustifyAbsence } from '@/lib/hooks/useAbsences';
+import { useAbsencesPaginated, useJustifyAbsence, useJustifyAbsencesBulk } from '@/lib/hooks/useAbsences';
 
 const PAGE_SIZE = 25;
 
 export default function AbsencesPage() {
   const justify = useJustifyAbsence();
+  const justifyBulk = useJustifyAbsencesBulk();
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkReason, setBulkReason] = useState('');
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
     setPage(1);
+    setSelectedIds(new Set());
   }, [debouncedSearch]);
 
   const absences = useAbsencesPaginated({ search: debouncedSearch || undefined, page, pageSize: PAGE_SIZE });
   const rows = absences.data?.items ?? [];
   const total = absences.data?.total ?? 0;
+  const selectableRows = useMemo(() => rows.filter((a) => !a.justified), [rows]);
+  const allSelectableChecked = selectableRows.length > 0 && selectableRows.every((a) => selectedIds.has(a.id));
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      if (allSelectableChecked) return new Set();
+      const next = new Set(prev);
+      selectableRows.forEach((a) => next.add(a.id));
+      return next;
+    });
+  }
+
+  function handleJustifyBulk() {
+    justifyBulk.mutate(
+      { absenceIds: [...selectedIds], reason: bulkReason },
+      {
+        onSuccess: () => {
+          setSelectedIds(new Set());
+          setBulkReason('');
+        },
+      },
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -31,10 +73,50 @@ export default function AbsencesPage() {
         <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un élève…" />
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <span className="text-sm font-medium text-emerald-800 whitespace-nowrap">
+            {selectedIds.size} absence{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
+          </span>
+          <input
+            value={bulkReason}
+            onChange={(e) => setBulkReason(e.target.value)}
+            placeholder="Motif commun (ex. grève des transports)"
+            className="flex-1 min-w-[200px] text-sm border border-emerald-200 rounded-lg px-3 py-1.5"
+          />
+          <button
+            type="button"
+            onClick={handleJustifyBulk}
+            disabled={!bulkReason.trim() || justifyBulk.isPending}
+            className="rounded-lg bg-emerald-600 text-white text-sm font-medium px-4 py-1.5 hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap"
+          >
+            {justifyBulk.isPending ? 'Justification…' : `Justifier ${selectedIds.size}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            title="Annuler la sélection"
+            className="p-1.5 text-emerald-700 hover:bg-emerald-100 rounded-lg"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs font-medium text-zinc-500">
+              <th className="p-3 w-8">
+                <input
+                  type="checkbox"
+                  checked={allSelectableChecked}
+                  onChange={toggleSelectAll}
+                  disabled={selectableRows.length === 0}
+                  className="h-4 w-4"
+                  aria-label="Tout sélectionner"
+                />
+              </th>
               <th className="p-3">Élève</th>
               <th className="p-3">Date</th>
               <th className="p-3">Statut</th>
@@ -42,10 +124,19 @@ export default function AbsencesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {absences.isLoading && <TableRowsSkeleton rows={5} cols={4} />}
+            {absences.isLoading && <TableRowsSkeleton rows={5} cols={5} />}
             {!absences.isLoading &&
               rows.map((absence) => (
                 <tr key={absence.id}>
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(absence.id)}
+                      disabled={absence.justified}
+                      onChange={() => toggleSelected(absence.id)}
+                      className="h-4 w-4"
+                    />
+                  </td>
                   <td className="p-3 font-semibold text-zinc-900">
                     {absence.student.firstName} {absence.student.lastName}
                   </td>
@@ -85,7 +176,7 @@ export default function AbsencesPage() {
               ))}
             {!absences.isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-4 text-sm text-zinc-400">
+                <td colSpan={5} className="p-4 text-sm text-zinc-400">
                   Aucune absence.
                 </td>
               </tr>
@@ -94,7 +185,7 @@ export default function AbsencesPage() {
         </table>
       </div>
 
-      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={goToPage} />
     </div>
   );
 }

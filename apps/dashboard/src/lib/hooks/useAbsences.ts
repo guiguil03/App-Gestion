@@ -32,3 +32,15 @@ export function useJustifyAbsence() {
     },
   });
 }
+
+export function useJustifyAbsencesBulk() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ absenceIds, reason }: { absenceIds: string[]; reason: string }) =>
+      absencesApi.justifyBulk(absenceIds, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['absences'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard', 'alerts'] });
+    },
+  });
+}

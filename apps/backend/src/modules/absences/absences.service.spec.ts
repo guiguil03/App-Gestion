@@ -5,18 +5,19 @@ import { ABSENCE_MARKED_EVENT } from '@/modules/absences/events/absence-marked.e
 
 function buildPrisma(overrides: Record<string, any> = {}) {
   return {
-    school: { findMany: jest.fn().mockResolvedValue([]) },
-    student: { findMany: jest.fn().mockResolvedValue([]) },
-    attendanceRecord: { findMany: jest.fn().mockResolvedValue([]) },
+    school: { findMany: jest.fn().mockResolvedValue([]), ...overrides.school },
+    student: { findMany: jest.fn().mockResolvedValue([]), ...overrides.student },
+    attendanceRecord: { findMany: jest.fn().mockResolvedValue([]), ...overrides.attendanceRecord },
     absence: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
       upsert: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       findFirst: jest.fn(),
       update: jest.fn(),
+      ...overrides.absence,
     },
-    user: { findFirst: jest.fn() },
-    ...overrides,
+    user: { findFirst: jest.fn(), ...overrides.user },
   } as any;
 }
 
@@ -120,6 +121,30 @@ describe('AbsencesService.justify', () => {
     await expect(
       service.justify('absence-1', 'school-1', 'Maladie', { role: 'PARENT', userId: 'parent-1' }),
     ).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('AbsencesService.justifyBulk', () => {
+  it('updates all matching absences scoped to the school and returns the count', async () => {
+    const prisma = buildPrisma({ absence: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) } });
+    const service = new AbsencesService(prisma, { emit: jest.fn() } as any);
+
+    const result = await service.justifyBulk(['a1', 'a2', 'a3'], 'school-1', 'Grève des transports');
+
+    expect(result).toEqual({ count: 3 });
+    expect(prisma.absence.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['a1', 'a2', 'a3'] }, student: { schoolId: 'school-1' } },
+      data: { justified: true, justificationReason: 'Grève des transports' },
+    });
+  });
+
+  it('returns a lower count than requested when some ids do not belong to the school (silently skipped)', async () => {
+    const prisma = buildPrisma({ absence: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) } });
+    const service = new AbsencesService(prisma, { emit: jest.fn() } as any);
+
+    const result = await service.justifyBulk(['a1', 'other-school-absence'], 'school-1', 'Maladie');
+
+    expect(result).toEqual({ count: 1 });
   });
 });
 

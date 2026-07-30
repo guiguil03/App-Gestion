@@ -8,4 +8,6 @@ export const absencesApi = {
   listPaginated: async (params: AbsencesPageParams) =>
     (await apiClient.get<PaginatedAbsences>('/absences', { params })).data,
   justify: async (id: string, reason: string) => (await apiClient.patch<Absence>(`/absences/${id}/justify`, { reason })).data,
+  justifyBulk: async (absenceIds: string[], reason: string) =>
+    (await apiClient.patch<{ count: number }>('/absences/justify-bulk', { absenceIds, reason })).data,
 };
