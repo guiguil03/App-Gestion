@@ -36,10 +36,10 @@ export default function DashboardOverviewPage() {
           </>
         ) : (
           <>
-            <KpiCard label="Élèves inscrits" value={overview.data?.totalStudents ?? 0} icon={Users} iconColor="text-blue-600" />
-            <KpiCard label="Présents" value={overview.data?.presentCount ?? 0} icon={CheckCircle2} iconColor="text-emerald-600" />
-            <KpiCard label="En retard" value={overview.data?.lateCount ?? 0} icon={Clock} iconColor="text-amber-600" />
-            <KpiCard label="Absents" value={overview.data?.absentCount ?? 0} icon={XCircle} iconColor="text-red-600" />
+            <KpiCard label="Élèves inscrits" value={overview.data?.totalStudents ?? 0} icon={Users} tone="blue" />
+            <KpiCard label="Présents" value={overview.data?.presentCount ?? 0} icon={CheckCircle2} tone="emerald" />
+            <KpiCard label="En retard" value={overview.data?.lateCount ?? 0} icon={Clock} tone="amber" />
+            <KpiCard label="Absents" value={overview.data?.absentCount ?? 0} icon={XCircle} tone="red" />
           </>
         )}
       </div>

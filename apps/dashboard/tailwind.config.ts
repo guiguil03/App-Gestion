@@ -7,7 +7,13 @@ const config: Config = {
     './src/lib/**/*.{ts,tsx}',
     './src/providers/**/*.{ts,tsx}',
   ],
-  theme: { extend: {} },
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+      },
+    },
+  },
   plugins: [],
 };
 
