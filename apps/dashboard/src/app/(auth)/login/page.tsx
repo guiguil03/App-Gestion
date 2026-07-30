@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AxiosError } from 'axios';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -34,8 +35,10 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(values.username, values.password);
-    } catch {
-      setError('Identifiants incorrects');
+    } catch (err) {
+      const message =
+        err instanceof AxiosError ? (err.response?.data as { message?: string } | undefined)?.message : undefined;
+      setError(message ?? 'Identifiants incorrects');
     }
   }
 

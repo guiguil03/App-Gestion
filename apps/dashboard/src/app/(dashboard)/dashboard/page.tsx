@@ -1,15 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { CheckCircle2, Clock, Users, XCircle } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { KpiCard, KpiCardSkeleton } from '@/components/ui/kpi-card';
+import { cn } from '@/lib/utils';
 import { useAlerts, useClassesComparison, useOverview, useTrend } from '@/lib/hooks/useDashboard';
 import { useDashboardStream } from '@/lib/realtime/useDashboardStream';
+
+const TREND_PERIODS = [
+  { value: 'week', label: '7 derniers jours' },
+  { value: 'month', label: '30 derniers jours' },
+] as const;
+
+type TrendPeriod = (typeof TREND_PERIODS)[number]['value'];
 
 export default function DashboardOverviewPage() {
   const status = useDashboardStream();
   const overview = useOverview();
-  const trend = useTrend('week');
+  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('week');
+  const trend = useTrend(trendPeriod);
   const classes = useClassesComparison();
   const alerts = useAlerts();
 
@@ -45,10 +55,29 @@ export default function DashboardOverviewPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-zinc-700 mb-4">Taux de présence — 7 derniers jours</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-zinc-700">
+            Taux de présence — {TREND_PERIODS.find((p) => p.value === trendPeriod)?.label}
+          </h2>
+          <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+            {TREND_PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setTrendPeriod(p.value)}
+                className={cn(
+                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  trendPeriod === p.value ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900',
+                )}
+              >
+                {p.value === 'week' ? 'Semaine' : 'Mois'}
+              </button>
+            ))}
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={trend.data ?? []}>
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={trendPeriod === 'month' ? 4 : 0} />
             <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
             <Tooltip />
             <Line type="monotone" dataKey="rate" stroke="#10b981" strokeWidth={2} dot={false} />

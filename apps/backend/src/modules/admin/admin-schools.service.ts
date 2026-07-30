@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
 import { generatePassword, generateUniqueUsername } from '@/common/accounts/generate-credentials';
 import { PrismaService } from '@/database/prisma.service';
 import { CardSigningService } from '@/modules/cards/card-signing.service';
 import type { CreateSchoolDto } from '@/modules/admin/dto/create-school.dto';
+import type { UpdateSchoolDto } from '@/modules/admin/dto/update-school.dto';
 
 function startOfToday(): Date {
   const start = new Date();
@@ -75,5 +76,27 @@ export class AdminSchoolsService {
       school: { id: school.id, name: school.name },
       directionAccount: { username, password },
     };
+  }
+
+  async update(schoolId: string, dto: UpdateSchoolDto) {
+    await this.assertExists(schoolId);
+    return this.prisma.school.update({ where: { id: schoolId }, data: { name: dto.name } });
+  }
+
+  /**
+   * Désactivation logique (soft-delete) : l'école et ses comptes ne
+   * disparaissent pas des données historiques, mais n'apparaissent plus dans
+   * la liste ni ne sont sélectionnables par un ADMIN (cf. `list()`,
+   * `where: { deletedAt: null }`).
+   */
+  async deactivate(schoolId: string) {
+    await this.assertExists(schoolId);
+    return this.prisma.school.update({ where: { id: schoolId }, data: { deletedAt: new Date() } });
+  }
+
+  private async assertExists(schoolId: string) {
+    const school = await this.prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
+    if (!school) throw new ForbiddenException('École introuvable');
+    return school;
   }
 }

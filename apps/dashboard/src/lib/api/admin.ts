@@ -4,6 +4,9 @@ import type { AdminSchool, CreatedSchool } from '@/types/admin';
 export const adminApi = {
   listSchools: async () => (await apiClient.get<AdminSchool[]>('/admin/schools')).data,
   createSchool: async (name: string) => (await apiClient.post<CreatedSchool>('/admin/schools', { name })).data,
+  renameSchool: async (schoolId: string, name: string) =>
+    (await apiClient.patch(`/admin/schools/${schoolId}`, { name })).data,
+  deactivateSchool: async (schoolId: string) => (await apiClient.patch(`/admin/schools/${schoolId}/deactivate`)).data,
   selectSchool: (schoolId: string) => fetch('/api/admin/select-school', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

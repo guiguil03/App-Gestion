@@ -1,9 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
+import { AuditService } from '@/modules/audit/audit.service';
+import type { AuthenticatedUser } from '@/modules/auth/types';
 import { ClassesService } from '@/modules/classes/classes.service';
 import { CreateClassDto } from '@/modules/classes/dto/create-class.dto';
 import { UpdateClassDto } from '@/modules/classes/dto/update-class.dto';
@@ -14,6 +17,7 @@ export class ClassesController {
   constructor(
     private readonly classesService: ClassesService,
     private readonly tenant: TenantContext,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
@@ -30,14 +34,35 @@ export class ClassesController {
 
   @Patch(':classId')
   @Roles('DIRECTION', 'ADMIN')
-  update(@Param('classId') classId: string, @Body() dto: UpdateClassDto) {
-    return this.classesService.update(classId, dto, this.tenant.schoolId);
+  async update(@Param('classId') classId: string, @Body() dto: UpdateClassDto, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.classesService.update(classId, dto, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'classes.update',
+      targetType: 'schoolClass',
+      targetId: classId,
+      metadata: { ...dto },
+    });
+    return result;
   }
 
   @Delete(':classId')
   @Roles('DIRECTION', 'ADMIN')
-  remove(@Param('classId') classId: string) {
-    return this.classesService.remove(classId, this.tenant.schoolId);
+  async remove(@Param('classId') classId: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.classesService.remove(classId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'classes.delete',
+      targetType: 'schoolClass',
+      targetId: classId,
+    });
+    return result;
   }
 
   @Post(':classId/teachers/:userId')

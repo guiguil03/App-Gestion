@@ -5,6 +5,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
+import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { CardsService } from '@/modules/cards/cards.service';
 
@@ -14,6 +15,7 @@ export class CardsController {
   constructor(
     private readonly cardsService: CardsService,
     private readonly tenant: TenantContext,
+    private readonly audit: AuditService,
   ) {}
 
   @Post(':studentId/issue')
@@ -52,7 +54,17 @@ export class CardsController {
 
   @Post(':cardId/revoke')
   @Roles('DIRECTION', 'ADMIN')
-  revoke(@Param('cardId') cardId: string) {
-    return this.cardsService.revokeCard(cardId, this.tenant.schoolId);
+  async revoke(@Param('cardId') cardId: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.cardsService.revokeCard(cardId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'cards.revoke',
+      targetType: 'card',
+      targetId: cardId,
+    });
+    return result;
   }
 }

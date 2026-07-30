@@ -10,3 +10,11 @@ export type CreatedSchool = {
   school: { id: string; name: string };
   directionAccount: { username: string; password: string };
 };
+
+export type AdminAccount = {
+  id: string;
+  username: string;
+  disabledAt: string | null;
+};
+
+export type ProvisionedAdminAccount = { username: string; password: string };

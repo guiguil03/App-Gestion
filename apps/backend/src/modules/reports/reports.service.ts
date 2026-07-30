@@ -17,6 +17,31 @@ export type StudentAttendanceSummary = {
   absencesUnjustifiedCount: number;
 };
 
+export type AttendanceHistoryStatus = 'PRESENT' | 'LATE' | 'ABSENT';
+
+export type AttendanceHistoryEntry = {
+  student: {
+    id: string;
+    lastName: string;
+    middleName: string | null;
+    firstName: string;
+    schoolClass: { id: string; name: string; promotion: string };
+  };
+  date: string;
+  status: AttendanceHistoryStatus;
+  justified: boolean | null;
+  justificationReason: string | null;
+  recordedAt: string | null;
+};
+
+export type AttendanceHistoryFilters = {
+  schoolClassId?: string;
+  studentId?: string;
+  status?: 'present' | 'late' | 'absent';
+  startDate: string;
+  endDate: string;
+};
+
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -90,6 +115,114 @@ export class ReportsService {
       absencesJustifiedCount: justifiedByStudent.get(student.id) ?? 0,
       absencesUnjustifiedCount: unjustifiedByStudent.get(student.id) ?? 0,
     }));
+  }
+  /**
+   * Historique jour par jour (présent/en retard/absent) — §3.6 du cahier des
+   * charges ("historique complet... filtres par date, classe, élève ou
+   * statut"). Une ligne par (élève, jour) où quelque chose s'est produit :
+   * un pointage PORTAIL/ENTREE ce jour-là, ou une absence enregistrée. Pas
+   * de ligne fabriquée pour les jours sans donnée (week-ends, etc.).
+   */
+  async attendanceHistory(schoolId: string, filters: AttendanceHistoryFilters): Promise<AttendanceHistoryEntry[]> {
+    const { schoolClassId, studentId, status, startDate, endDate } = filters;
+    const startOfRange = new Date(`${startDate}T00:00:00`);
+    const endOfRange = new Date(`${endDate}T23:59:59.999`);
+
+    const [attendanceRecords, absences] = await Promise.all([
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          student: { schoolId, schoolClassId, id: studentId, deletedAt: null },
+          checkpoint: 'PORTAIL',
+          direction: 'ENTREE',
+          recordedAt: { gte: startOfRange, lte: endOfRange },
+        },
+        select: {
+          studentId: true,
+          recordedAt: true,
+          isLate: true,
+          student: { include: { schoolClass: true } },
+        },
+        orderBy: { recordedAt: 'asc' },
+      }),
+      this.prisma.absence.findMany({
+        where: {
+          student: { schoolId, schoolClassId, id: studentId, deletedAt: null },
+          date: { gte: startDate, lte: endDate },
+        },
+        select: {
+          studentId: true,
+          date: true,
+          justified: true,
+          justificationReason: true,
+          student: { include: { schoolClass: true } },
+        },
+      }),
+    ]);
+
+    type Row = {
+      student: AttendanceHistoryEntry['student'];
+      date: string;
+      status: AttendanceHistoryStatus;
+      justified: boolean | null;
+      justificationReason: string | null;
+      recordedAt: string | null;
+    };
+
+    function toStudentRef(student: {
+      id: string;
+      lastName: string;
+      middleName: string | null;
+      firstName: string;
+      schoolClass: { id: string; name: string; promotion: string };
+    }): AttendanceHistoryEntry['student'] {
+      return {
+        id: student.id,
+        lastName: student.lastName,
+        middleName: student.middleName,
+        firstName: student.firstName,
+        schoolClass: { id: student.schoolClass.id, name: student.schoolClass.name, promotion: student.schoolClass.promotion },
+      };
+    }
+
+    const byKey = new Map<string, Row>();
+
+    // Pointages : on garde le premier de la journée (recordedAt asc ci-dessus).
+    for (const record of attendanceRecords) {
+      const day = dateKey(record.recordedAt);
+      const key = `${record.studentId}|${day}`;
+      if (byKey.has(key)) continue;
+      byKey.set(key, {
+        student: toStudentRef(record.student),
+        date: day,
+        status: record.isLate ? 'LATE' : 'PRESENT',
+        justified: null,
+        justificationReason: null,
+        recordedAt: record.recordedAt.toISOString(),
+      });
+    }
+
+    // Les absences priment sur un éventuel pointage (ne devrait pas coexister en pratique).
+    for (const absence of absences) {
+      const key = `${absence.studentId}|${absence.date}`;
+      byKey.set(key, {
+        student: toStudentRef(absence.student),
+        date: absence.date,
+        status: 'ABSENT',
+        justified: absence.justified,
+        justificationReason: absence.justificationReason,
+        recordedAt: null,
+      });
+    }
+
+    const wantedStatus = status ? (status.toUpperCase() as AttendanceHistoryStatus) : undefined;
+    const rows = [...byKey.values()].filter((row) => !wantedStatus || row.status === wantedStatus);
+
+    rows.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return a.student.lastName.localeCompare(b.student.lastName);
+    });
+
+    return rows;
   }
 }
 

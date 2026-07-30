@@ -3,21 +3,29 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight, CheckCircle2, LogOut, School as SchoolIcon, Users } from 'lucide-react';
+import { ArrowRight, Ban, CheckCircle2, Check, LogOut, Pencil, School as SchoolIcon, Users, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { SearchInput } from '@/components/ui/search-input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TableRowsSkeleton } from '@/components/ui/skeleton';
 import { adminApi } from '@/lib/api/admin';
 import { getErrorMessage } from '@/lib/api/errors';
-import { useAdminSchools, useCreateSchool } from '@/lib/hooks/useAdminSchools';
+import { useAdminAccounts, useCreateAdminAccount, useDisableAdminAccount } from '@/lib/hooks/useAdminAccounts';
+import { useAdminSchools, useCreateSchool, useDeactivateSchool, useRenameSchool } from '@/lib/hooks/useAdminSchools';
 import { useAuth } from '@/providers/auth-provider';
-import type { AdminSchool } from '@/types/admin';
+import type { AdminAccount, AdminSchool } from '@/types/admin';
 
 const schoolSchema = z.object({ name: z.string().min(1, 'Nom requis') });
 type SchoolForm = z.infer<typeof schoolSchema>;
+
+const adminAccountSchema = z.object({
+  firstName: z.string().min(1, 'Prénom requis'),
+  lastName: z.string().min(1, 'Nom requis'),
+});
+type AdminAccountForm = z.infer<typeof adminAccountSchema>;
 
 function initialsFor(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -29,6 +37,9 @@ export default function AdminPage() {
   const { session, logout } = useAuth();
   const schools = useAdminSchools();
   const createSchool = useCreateSchool();
+  const renameSchool = useRenameSchool();
+  const deactivateSchool = useDeactivateSchool();
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminSchool | null>(null);
   const [credentials, setCredentials] = useState<{ schoolName: string; username: string; password: string } | null>(null);
   const [search, setSearch] = useState('');
   const [enteringId, setEnteringId] = useState<string | null>(null);
@@ -38,6 +49,18 @@ export default function AdminPage() {
     reset,
     formState: { errors },
   } = useForm<SchoolForm>({ resolver: zodResolver(schoolSchema) });
+
+  const adminAccounts = useAdminAccounts();
+  const createAdminAccount = useCreateAdminAccount();
+  const disableAdminAccount = useDisableAdminAccount();
+  const [adminCredentials, setAdminCredentials] = useState<{ username: string; password: string } | null>(null);
+  const [disableAdminTarget, setDisableAdminTarget] = useState<{ id: string; username: string } | null>(null);
+  const {
+    register: registerAdminAccount,
+    handleSubmit: handleSubmitAdminAccount,
+    reset: resetAdminAccount,
+    formState: { errors: adminAccountErrors },
+  } = useForm<AdminAccountForm>({ resolver: zodResolver(adminAccountSchema) });
 
   const filteredSchools = useMemo(() => {
     const all = schools.data ?? [];
@@ -61,6 +84,12 @@ export default function AdminPage() {
       password: result.directionAccount.password,
     });
     reset();
+  }
+
+  async function onSubmitAdminAccount(values: AdminAccountForm) {
+    const result = await createAdminAccount.mutateAsync(values);
+    setAdminCredentials(result);
+    resetAdminAccount();
   }
 
   async function handleEnter(schoolId: string) {
@@ -162,6 +191,8 @@ export default function AdminPage() {
                 school={school}
                 isEntering={enteringId === school.id}
                 onEnter={() => void handleEnter(school.id)}
+                onRename={(name) => renameSchool.mutate({ schoolId: school.id, name })}
+                onRequestDeactivate={() => setDeactivateTarget(school)}
               />
             ))}
           </div>
@@ -178,7 +209,127 @@ export default function AdminPage() {
             {!search && <p className="text-xs text-zinc-400">Crée la première école avec le formulaire ci-dessus.</p>}
           </div>
         )}
+
+        <div className="pt-4 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-700">Comptes admin</h2>
+
+          {adminCredentials && (
+            <CredentialsBanner
+              label="Compte admin créé"
+              username={adminCredentials.username}
+              password={adminCredentials.password}
+              onDismiss={() => setAdminCredentials(null)}
+            />
+          )}
+
+          {createAdminAccount.isError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+              {getErrorMessage(createAdminAccount.error, 'Impossible de créer ce compte. Vérifie les champs et réessaie.')}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleSubmitAdminAccount(onSubmitAdminAccount)}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-wrap gap-3 items-end"
+          >
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-500">Prénom</label>
+              <input {...registerAdminAccount('firstName')} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+              {adminAccountErrors.firstName && <p className="text-xs text-red-600">{adminAccountErrors.firstName.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-500">Nom</label>
+              <input {...registerAdminAccount('lastName')} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+              {adminAccountErrors.lastName && <p className="text-xs text-red-600">{adminAccountErrors.lastName.message}</p>}
+            </div>
+            <button
+              type="submit"
+              disabled={createAdminAccount.isPending}
+              className="rounded-lg bg-zinc-900 text-white text-sm font-medium px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {createAdminAccount.isPending ? 'Création…' : 'Créer le compte admin'}
+            </button>
+          </form>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs font-medium text-zinc-500">
+                  <th className="p-3">Identifiant</th>
+                  <th className="p-3">Statut</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {adminAccounts.isLoading && <TableRowsSkeleton rows={3} cols={3} />}
+                {!adminAccounts.isLoading &&
+                  (adminAccounts.data ?? []).map((account: AdminAccount) => (
+                    <tr key={account.id}>
+                      <td className="p-3 font-semibold text-zinc-900">{account.username}</td>
+                      <td className="p-3">
+                        {account.disabledAt ? (
+                          <span className="inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                            Désactivé
+                          </span>
+                        ) : (
+                          <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                            Actif
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        {!account.disabledAt && (
+                          <button
+                            type="button"
+                            onClick={() => setDisableAdminTarget({ id: account.id, username: account.username })}
+                            className="text-xs font-medium text-red-600 hover:text-red-700"
+                          >
+                            Désactiver
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                {!adminAccounts.isLoading && adminAccounts.data?.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-sm text-zinc-400">
+                      Aucun compte admin.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
+
+      <ConfirmDialog
+        open={disableAdminTarget !== null}
+        tone="danger"
+        title="Désactiver ce compte admin ?"
+        description={`${disableAdminTarget?.username} ne pourra plus se connecter tant que le compte n'est pas réactivé.`}
+        confirmLabel="Désactiver"
+        isLoading={disableAdminAccount.isPending}
+        onCancel={() => setDisableAdminTarget(null)}
+        onConfirm={() => {
+          if (disableAdminTarget) {
+            disableAdminAccount.mutate(disableAdminTarget.id, { onSuccess: () => setDisableAdminTarget(null) });
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={deactivateTarget !== null}
+        tone="danger"
+        title="Désactiver cette école ?"
+        description={`« ${deactivateTarget?.name} » et ses comptes ne seront plus accessibles. Les données existantes sont conservées.`}
+        confirmLabel="Désactiver"
+        isLoading={deactivateSchool.isPending}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={() => {
+          if (deactivateTarget) deactivateSchool.mutate(deactivateTarget.id, { onSuccess: () => setDeactivateTarget(null) });
+        }}
+      />
     </div>
   );
 }
@@ -187,21 +338,83 @@ function SchoolCard({
   school,
   isEntering,
   onEnter,
+  onRename,
+  onRequestDeactivate,
 }: {
   school: AdminSchool;
   isEntering: boolean;
   onEnter: () => void;
+  onRename: (name: string) => void;
+  onRequestDeactivate: () => void;
 }) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(school.name);
+
+  function submitRename() {
+    const trimmed = draftName.trim();
+    if (trimmed && trimmed !== school.name) onRename(trimmed);
+    setIsRenaming(false);
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
           {initialsFor(school.name)}
         </div>
-        <div className="min-w-0">
-          <p className="font-semibold text-zinc-900 truncate">{school.name}</p>
+        <div className="min-w-0 flex-1">
+          {isRenaming ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitRename();
+                  if (e.key === 'Escape') {
+                    setDraftName(school.name);
+                    setIsRenaming(false);
+                  }
+                }}
+                className="w-full rounded-lg border border-emerald-300 px-2 py-1 text-sm font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button type="button" onClick={submitRename} className="p-1 text-emerald-600 hover:text-emerald-700 flex-shrink-0">
+                <Check size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftName(school.name);
+                  setIsRenaming(false);
+                }}
+                className="p-1 text-zinc-400 hover:text-zinc-600 flex-shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <p className="font-semibold text-zinc-900 truncate">{school.name}</p>
+              <button
+                type="button"
+                onClick={() => setIsRenaming(true)}
+                title="Renommer"
+                className="p-0.5 text-zinc-300 hover:text-zinc-600 flex-shrink-0"
+              >
+                <Pencil size={12} />
+              </button>
+            </div>
+          )}
           <p className="text-xs text-zinc-500">{school.studentCount} élève{school.studentCount > 1 ? 's' : ''}</p>
         </div>
+        <button
+          type="button"
+          onClick={onRequestDeactivate}
+          title="Désactiver l'école"
+          className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
+        >
+          <Ban size={14} />
+        </button>
       </div>
 
       <div>

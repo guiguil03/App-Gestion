@@ -8,6 +8,7 @@ import { PrismaModule } from '@/database/prisma.module';
 import { AbsencesModule } from '@/modules/absences/absences.module';
 import { AdminModule } from '@/modules/admin/admin.module';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
+import { AuditModule } from '@/modules/audit/audit.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { CardsModule } from '@/modules/cards/cards.module';
 import { ClassesModule } from '@/modules/classes/classes.module';
@@ -27,6 +28,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     ScheduleModule.forRoot(),
     CommonModule,
     PrismaModule,
+    AuditModule,
     AuthModule,
     SchoolsModule,
     StudentsModule,

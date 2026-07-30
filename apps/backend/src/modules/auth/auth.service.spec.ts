@@ -8,8 +8,9 @@ function buildDeps(overrides: Record<string, any> = {}) {
     ...overrides,
   } as any;
   const jwt = { sign: jest.fn(), verifyAsync: jest.fn() } as any;
-  const service = new AuthService(prisma, jwt);
-  return { service, prisma, jwt };
+  const audit = { log: jest.fn() } as any;
+  const service = new AuthService(prisma, jwt, audit);
+  return { service, prisma, jwt, audit };
 }
 
 describe('AuthService.changePassword', () => {
@@ -46,5 +47,41 @@ describe('AuthService.changePassword', () => {
     });
     const newHash = prisma.user.update.mock.calls[0][0].data.passwordHash;
     expect(await bcrypt.compare('new-password', newHash)).toBe(true);
+  });
+});
+
+describe('AuthService.login — audit', () => {
+  it('logs auth.login.success with the user identity on success', async () => {
+    const passwordHash = await bcrypt.hash('correct-password', 10);
+    const { service, audit, jwt } = buildDeps({
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'user-1', username: 'direction1', role: 'DIRECTION', schoolId: 'school-1', studentId: null, passwordHash }),
+      },
+    });
+    jwt.sign.mockReturnValue('token');
+
+    await service.login('direction1', 'correct-password');
+
+    expect(audit.log).toHaveBeenCalledWith({
+      schoolId: 'school-1',
+      userId: 'user-1',
+      username: 'direction1',
+      role: 'DIRECTION',
+      action: 'auth.login.success',
+    });
+  });
+
+  it('logs auth.login.failure without leaking whether the username exists in metadata beyond a reason code', async () => {
+    const { service, audit } = buildDeps({ user: { findUnique: jest.fn().mockResolvedValue(null) } });
+
+    await expect(service.login('ghost', 'whatever')).rejects.toThrow('Identifiants incorrects');
+
+    expect(audit.log).toHaveBeenCalledWith({
+      action: 'auth.login.failure',
+      username: 'ghost',
+      metadata: { reason: 'unknown_username' },
+    });
   });
 });

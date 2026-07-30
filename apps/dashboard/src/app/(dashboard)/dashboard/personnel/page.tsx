@@ -11,11 +11,17 @@ import { getErrorMessage } from '@/lib/api/errors';
 import { useCreateStaff, useDisableStaff, useStaff } from '@/lib/hooks/useStaff';
 
 const staffSchema = z.object({
-  role: z.enum(['ENSEIGNANT', 'SURVEILLANT']),
+  role: z.enum(['ENSEIGNANT', 'SURVEILLANT', 'DIRECTION']),
   firstName: z.string().min(1, 'Prénom requis'),
   lastName: z.string().min(1, 'Nom requis'),
 });
 type StaffForm = z.infer<typeof staffSchema>;
+
+const ROLE_LABELS: Record<StaffForm['role'], string> = {
+  ENSEIGNANT: 'Enseignant',
+  SURVEILLANT: 'Surveillant',
+  DIRECTION: 'Direction',
+};
 
 export default function PersonnelPage() {
   const staff = useStaff();
@@ -62,6 +68,7 @@ export default function PersonnelPage() {
           <select {...register('role')} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm">
             <option value="ENSEIGNANT">Enseignant</option>
             <option value="SURVEILLANT">Surveillant</option>
+            <option value="DIRECTION">Direction</option>
           </select>
         </div>
         <div className="space-y-1.5">
@@ -97,7 +104,7 @@ export default function PersonnelPage() {
               (staff.data ?? []).map((account) => (
                 <tr key={account.id}>
                   <td className="p-3 font-semibold text-zinc-900">{account.username}</td>
-                  <td className="p-3 text-zinc-500">{account.role === 'ENSEIGNANT' ? 'Enseignant' : 'Surveillant'}</td>
+                  <td className="p-3 text-zinc-500">{ROLE_LABELS[account.role]}</td>
                   <td className="p-3">
                     {account.disabledAt ? (
                       <span className="inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">

@@ -22,6 +22,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
+import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { CreateStudentDto } from '@/modules/students/dto/create-student.dto';
 import { detectImageExtension } from '@/modules/students/image-signature';
@@ -38,6 +39,7 @@ export class StudentsController {
     private readonly studentsService: StudentsService,
     private readonly tenant: TenantContext,
     private readonly photoStorage: StudentPhotoStorageService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
@@ -127,18 +129,40 @@ export class StudentsController {
   // immédiatement par la direction, non récupérable ensuite.
   @Post(':studentId/account')
   @Roles('DIRECTION', 'ADMIN')
-  provisionAccount(@Param('studentId') studentId: string) {
-    return this.studentsService.provisionAccount(studentId, this.tenant.schoolId);
+  async provisionAccount(@Param('studentId') studentId: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.studentsService.provisionAccount(studentId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'students.provision_account',
+      targetType: 'student',
+      targetId: studentId,
+    });
+    return result;
   }
 
   // Retourne le mot de passe en clair une seule fois (idem provisionAccount)
   // — `password: null` si un compte parent existant a été réutilisé (fratrie).
   @Post(':studentId/parents/:parentGuardianId/account')
   @Roles('DIRECTION', 'ADMIN')
-  provisionParentAccount(
+  async provisionParentAccount(
     @Param('studentId') studentId: string,
     @Param('parentGuardianId') parentGuardianId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.studentsService.provisionParentAccount(studentId, parentGuardianId, this.tenant.schoolId);
+    const result = await this.studentsService.provisionParentAccount(studentId, parentGuardianId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'students.provision_parent_account',
+      targetType: 'student',
+      targetId: studentId,
+      metadata: { parentGuardianId, reused: result.reused },
+    });
+    return result;
   }
 }

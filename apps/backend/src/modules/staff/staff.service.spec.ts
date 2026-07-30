@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { StaffService } from '@/modules/staff/staff.service';
 
@@ -10,6 +10,7 @@ function buildPrisma(overrides: Record<string, any> = {}) {
       findMany: jest.fn().mockResolvedValue([]),
       findFirst: jest.fn(),
       update: jest.fn(),
+      count: jest.fn().mockResolvedValue(2),
     },
     ...overrides,
   } as any;
@@ -32,10 +33,12 @@ describe('StaffService.create', () => {
 
 describe('StaffService.disable', () => {
   it('sets disabledAt on a staff account of the current school', async () => {
-    const prisma = buildPrisma({ user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }), update: jest.fn() } });
+    const prisma = buildPrisma({
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1', role: 'ENSEIGNANT' }), update: jest.fn(), count: jest.fn() },
+    });
     const service = new StaffService(prisma);
 
-    await service.disable('user-1', 'school-1');
+    await service.disable('user-1', 'school-1', 'user-2');
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
@@ -48,6 +51,40 @@ describe('StaffService.disable', () => {
     const prisma = buildPrisma({ user: { findFirst: jest.fn().mockResolvedValue(null) } });
     const service = new StaffService(prisma);
 
-    await expect(service.disable('user-1', 'school-1')).rejects.toThrow(NotFoundException);
+    await expect(service.disable('user-1', 'school-1', 'user-2')).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects self-disable', async () => {
+    const prisma = buildPrisma({ user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1', role: 'ENSEIGNANT' }) } });
+    const service = new StaffService(prisma);
+
+    await expect(service.disable('user-1', 'school-1', 'user-1')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('rejects disabling the last active DIRECTION account of the school', async () => {
+    const prisma = buildPrisma({
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-1', role: 'DIRECTION' }),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    });
+    const service = new StaffService(prisma);
+
+    await expect(service.disable('user-1', 'school-1', 'user-2')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('allows disabling a DIRECTION account when another one remains active', async () => {
+    const prisma = buildPrisma({
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-1', role: 'DIRECTION' }),
+        count: jest.fn().mockResolvedValue(2),
+        update: jest.fn(),
+      },
+    });
+    const service = new StaffService(prisma);
+
+    await service.disable('user-1', 'school-1', 'user-2');
+
+    expect(prisma.user.update).toHaveBeenCalled();
   });
 });

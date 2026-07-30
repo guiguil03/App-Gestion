@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 
 import { PrismaService } from '@/database/prisma.service';
+import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser, Role } from '@/modules/auth/types';
 
 export type LoginResult = {
@@ -20,13 +21,27 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   async login(username: string, password: string): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({ where: { username } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      await this.audit.log({
+        action: 'auth.login.failure',
+        username,
+        metadata: { reason: user ? 'wrong_password' : 'unknown_username' },
+      });
       throw new UnauthorizedException('Identifiants incorrects');
     }
+
+    await this.audit.log({
+      schoolId: user.schoolId,
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      action: 'auth.login.success',
+    });
 
     return this.issueTokenPair({
       userId: user.id,

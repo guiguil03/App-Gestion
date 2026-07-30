@@ -151,13 +151,13 @@ model ParentGuardian {
 // Le parent peut ensuite justifier l'absence a posteriori (3.5 du cahier des
 // charges).
 model Absence {
-  id                   String    @id @default(uuid())
-  studentId             String    @map("student_id")
-  date                  String // "YYYY-MM-DD"
-  justified             Boolean   @default(false)
-  justificationReason   String?   @map("justification_reason")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  studentId           String   @map("student_id")
+  date                String // "YYYY-MM-DD"
+  justified           Boolean  @default(false)
+  justificationReason String?  @map("justification_reason")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   student Student @relation(fields: [studentId], references: [id])
 
@@ -253,23 +253,23 @@ model TeacherSigningKey {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole
-  schoolId     String?  @map("school_id")
+  id            String    @id @default(uuid())
+  username      String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole
+  schoolId      String?   @map("school_id")
   // Renseigné uniquement pour un compte ELEVE : relie le compte de connexion
   // à sa fiche élève.
-  studentId    String?  @unique @map("student_id")
+  studentId     String?   @unique @map("student_id")
   // Jeton Expo Push (device), renseigné dès l'app ouverte et connectée —
   // permet l'envoi de notifications push (arrivée, absence).
-  expoPushToken String? @map("expo_push_token")
+  expoPushToken String?   @map("expo_push_token")
   // Désactivation soft d'un compte staff (ENSEIGNANT/SURVEILLANT) par la
   // Direction — rejeté par JwtAuthGuard dès la prochaine requête, pas
   // seulement au prochain login.
   disabledAt    DateTime? @map("disabled_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   school          School?             @relation(fields: [schoolId], references: [id])
   student         Student?            @relation(fields: [studentId], references: [id])
@@ -283,4 +283,26 @@ model User {
   parentGuardians ParentGuardian[]
 
   @@map("users")
+}
+
+// Journalisation des accès et actions sensibles (§4 du cahier des charges —
+// "journalisation des accès"). Table de log append-only et volontairement
+// dénormalisée (username/role figés au moment de l'action, pas de relation
+// FK vers User/School) : une entrée doit rester lisible même après
+// suppression du compte ou de l'école concernée.
+model AuditLog {
+  id         String   @id @default(uuid())
+  schoolId   String?  @map("school_id")
+  userId     String?  @map("user_id")
+  username   String?
+  role       String?
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([schoolId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

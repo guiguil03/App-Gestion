@@ -12,3 +12,19 @@ export function useCreateSchool() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'schools'] }),
   });
 }
+
+export function useRenameSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ schoolId, name }: { schoolId: string; name: string }) => adminApi.renameSchool(schoolId, name),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'schools'] }),
+  });
+}
+
+export function useDeactivateSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (schoolId: string) => adminApi.deactivateSchool(schoolId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'schools'] }),
+  });
+}

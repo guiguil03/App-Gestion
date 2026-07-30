@@ -13,6 +13,22 @@ export function useCreateClass() {
   });
 }
 
+export function useUpdateClass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { name?: string; promotion?: string } }) => classesApi.update(id, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['classes'] }),
+  });
+}
+
+export function useRemoveClass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => classesApi.remove(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['classes'] }),
+  });
+}
+
 export function useAssignTeacher() {
   const queryClient = useQueryClient();
   return useMutation({

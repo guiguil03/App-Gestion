@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
 import { generatePassword, generateUniqueUsername } from '@/common/accounts/generate-credentials';
@@ -28,7 +28,7 @@ export class StaffService {
 
   list(schoolId: string) {
     return this.prisma.user.findMany({
-      where: { schoolId, role: { in: ['ENSEIGNANT', 'SURVEILLANT'] } },
+      where: { schoolId, role: { in: ['ENSEIGNANT', 'SURVEILLANT', 'DIRECTION'] } },
       select: {
         id: true,
         username: true,
@@ -40,9 +40,23 @@ export class StaffService {
     });
   }
 
-  async disable(userId: string, schoolId: string) {
+  async disable(userId: string, schoolId: string, currentUserId: string) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, schoolId } });
     if (!user) throw new NotFoundException('Compte introuvable');
+
+    if (userId === currentUserId) {
+      throw new ForbiddenException('Vous ne pouvez pas désactiver votre propre compte');
+    }
+
+    if (user.role === 'DIRECTION') {
+      const activeDirectionCount = await this.prisma.user.count({
+        where: { schoolId, role: 'DIRECTION', disabledAt: null },
+      });
+      if (activeDirectionCount <= 1) {
+        throw new ForbiddenException("Impossible de désactiver le dernier compte direction de l'école");
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
       data: { disabledAt: new Date() },

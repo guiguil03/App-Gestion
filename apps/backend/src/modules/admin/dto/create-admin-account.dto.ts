@@ -1,9 +1,6 @@
-import { IsIn, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
-export class CreateStaffDto {
-  @IsIn(['ENSEIGNANT', 'SURVEILLANT', 'DIRECTION'])
-  role!: 'ENSEIGNANT' | 'SURVEILLANT' | 'DIRECTION';
-
+export class CreateAdminAccountDto {
   // Utilisé uniquement pour générer un identifiant lisible (prénom.nom) —
   // il n'existe pas de champ prénom/nom sur `User`, voir note du spec §5.1.
   @IsString()

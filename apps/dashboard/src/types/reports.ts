@@ -17,3 +17,22 @@ export type AttendanceSummaryParams = {
   startDate: string;
   endDate: string;
 };
+
+export type AttendanceHistoryStatus = 'PRESENT' | 'LATE' | 'ABSENT';
+
+export type AttendanceHistoryEntry = {
+  student: StudentAttendanceSummary['student'];
+  date: string;
+  status: AttendanceHistoryStatus;
+  justified: boolean | null;
+  justificationReason: string | null;
+  recordedAt: string | null;
+};
+
+export type AttendanceHistoryParams = {
+  schoolClassId?: string;
+  studentId?: string;
+  status?: 'present' | 'late' | 'absent';
+  startDate: string;
+  endDate: string;
+};
