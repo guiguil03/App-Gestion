@@ -293,6 +293,22 @@ export class StudentsService {
   }
 
   /**
+   * Suppression douce (élève qui quitte l'école) : `deletedAt` exclut la
+   * fiche des listings/pointages sans perdre l'historique (présences,
+   * absences, cartes déjà émises). Le compte ELEVE lié, s'il existe, est
+   * désactivé au passage — sinon l'élève garderait un accès valide malgré
+   * la suppression de sa fiche.
+   */
+  async remove(studentId: string, schoolId: string) {
+    await this.assertBelongsToSchool(studentId, schoolId);
+    const [student] = await this.prisma.$transaction([
+      this.prisma.student.update({ where: { id: studentId }, data: { deletedAt: new Date() } }),
+      this.prisma.user.updateMany({ where: { studentId, disabledAt: null }, data: { disabledAt: new Date() } }),
+    ]);
+    return student;
+  }
+
+  /**
    * Import en masse — typiquement juste après la création d'une école, pour
    * peupler ses élèves sans passer par le formulaire un par un. La classe de
    * chaque ligne est résolue par nom (insensible à la casse) parmi les

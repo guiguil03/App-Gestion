@@ -40,6 +40,14 @@ export function useImportStudents() {
   });
 }
 
+export function useRemoveStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: string) => studentsApi.remove(studentId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['students'] }),
+  });
+}
+
 export function useProvisionStudentAccount() {
   return useMutation({ mutationFn: (studentId: string) => studentsApi.provisionAccount(studentId) });
 }

@@ -1,3 +1,5 @@
+import { ForbiddenException } from '@nestjs/common';
+
 import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { StudentsService } from '@/modules/students/students.service';
 
@@ -171,6 +173,32 @@ describe('StudentsService.provisionParentAccount — hash-based lookup', () => {
 
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
     expect(result.reused).toBe(false);
+  });
+});
+
+describe('StudentsService.remove', () => {
+  it('soft-deletes the student and disables its linked ELEVE account within the same transaction', async () => {
+    const { service, prisma } = buildService({
+      student: {
+        findFirst: jest.fn().mockResolvedValue({ id: 's1', schoolId: 'school-1' }),
+        update: jest.fn().mockResolvedValue({ id: 's1', deletedAt: new Date() }),
+      },
+      user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    });
+
+    await service.remove('s1', 'school-1');
+
+    expect(prisma.student.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { deletedAt: expect.any(Date) } });
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { studentId: 's1', disabledAt: null },
+      data: { disabledAt: expect.any(Date) },
+    });
+  });
+
+  it('rejects deleting a student outside the current school', async () => {
+    const { service } = buildService({ student: { findFirst: jest.fn().mockResolvedValue(null) } });
+
+    await expect(service.remove('s1', 'school-1')).rejects.toThrow(ForbiddenException);
   });
 });
 

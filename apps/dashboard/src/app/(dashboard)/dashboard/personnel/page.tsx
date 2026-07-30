@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { getErrorMessage } from '@/lib/api/errors';
-import { useCreateStaff, useDisableStaff, useStaff } from '@/lib/hooks/useStaff';
+import { useCreateStaff, useDisableStaff, useResetStaffPassword, useStaff } from '@/lib/hooks/useStaff';
 
 const staffSchema = z.object({
   role: z.enum(['ENSEIGNANT', 'SURVEILLANT', 'DIRECTION']),
@@ -27,8 +27,10 @@ export default function PersonnelPage() {
   const staff = useStaff();
   const createStaff = useCreateStaff();
   const disableStaff = useDisableStaff();
-  const [createdCredentials, setCreatedCredentials] = useState<{ username: string; password: string } | null>(null);
+  const resetStaffPassword = useResetStaffPassword();
+  const [credentials, setCredentials] = useState<{ label: string; username: string; password: string } | null>(null);
   const [disableTarget, setDisableTarget] = useState<{ id: string; username: string } | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; username: string } | null>(null);
   const { register, handleSubmit, reset } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
     defaultValues: { role: 'ENSEIGNANT' },
@@ -36,20 +38,27 @@ export default function PersonnelPage() {
 
   async function onSubmit(values: StaffForm) {
     const result = await createStaff.mutateAsync(values);
-    setCreatedCredentials(result);
+    setCredentials({ label: 'Compte créé', ...result });
     reset();
+  }
+
+  async function handleResetPassword() {
+    if (!resetTarget) return;
+    const result = await resetStaffPassword.mutateAsync(resetTarget.id);
+    setCredentials({ label: `Mot de passe régénéré — ${resetTarget.username}`, ...result });
+    setResetTarget(null);
   }
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-zinc-900">Personnel</h1>
 
-      {createdCredentials && (
+      {credentials && (
         <CredentialsBanner
-          label="Compte créé"
-          username={createdCredentials.username}
-          password={createdCredentials.password}
-          onDismiss={() => setCreatedCredentials(null)}
+          label={credentials.label}
+          username={credentials.username}
+          password={credentials.password}
+          onDismiss={() => setCredentials(null)}
         />
       )}
 
@@ -118,13 +127,22 @@ export default function PersonnelPage() {
                   </td>
                   <td className="p-3 text-right">
                     {!account.disabledAt && (
-                      <button
-                        type="button"
-                        onClick={() => setDisableTarget({ id: account.id, username: account.username })}
-                        className="text-xs font-medium text-red-600 hover:text-red-700"
-                      >
-                        Désactiver
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setResetTarget({ id: account.id, username: account.username })}
+                          className="text-xs font-medium text-emerald-600 hover:text-emerald-700 whitespace-nowrap"
+                        >
+                          Régénérer le mot de passe
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDisableTarget({ id: account.id, username: account.username })}
+                          className="text-xs font-medium text-red-600 hover:text-red-700"
+                        >
+                          Désactiver
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -151,6 +169,16 @@ export default function PersonnelPage() {
         onConfirm={() => {
           if (disableTarget) disableStaff.mutate(disableTarget.id, { onSuccess: () => setDisableTarget(null) });
         }}
+      />
+
+      <ConfirmDialog
+        open={resetTarget !== null}
+        title="Régénérer le mot de passe ?"
+        description={`L'ancien mot de passe de ${resetTarget?.username} cessera immédiatement de fonctionner.`}
+        confirmLabel="Régénérer"
+        isLoading={resetStaffPassword.isPending}
+        onCancel={() => setResetTarget(null)}
+        onConfirm={() => void handleResetPassword()}
       />
     </div>
   );

@@ -31,6 +31,28 @@ describe('StaffService.create', () => {
   });
 });
 
+describe('StaffService.resetPassword', () => {
+  it('generates a new password for an existing staff account of the current school, keeping the username', async () => {
+    const prisma = buildPrisma({
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1', username: 'jean.dupont', role: 'ENSEIGNANT' }), update: jest.fn() },
+    });
+    const service = new StaffService(prisma);
+
+    const result = await service.resetPassword('user-1', 'school-1');
+
+    expect(result.username).toBe('jean.dupont');
+    expect(result.password).toHaveLength(8);
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { passwordHash: expect.any(String) } });
+  });
+
+  it('rejects resetting an account outside the current school or not staff', async () => {
+    const prisma = buildPrisma({ user: { findFirst: jest.fn().mockResolvedValue(null) } });
+    const service = new StaffService(prisma);
+
+    await expect(service.resetPassword('user-1', 'school-1')).rejects.toThrow(NotFoundException);
+  });
+});
+
 describe('StaffService.disable', () => {
   it('sets disabledAt on a staff account of the current school', async () => {
     const prisma = buildPrisma({

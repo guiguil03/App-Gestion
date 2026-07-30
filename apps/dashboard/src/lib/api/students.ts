@@ -17,6 +17,7 @@ export const studentsApi = {
   create: async (input: CreateStudentInput) => (await apiClient.post<Student>('/students', input)).data,
   importBulk: async (rows: Record<string, string>[]) =>
     (await apiClient.post<ImportStudentsResult>('/students/import', { rows })).data,
+  remove: async (studentId: string) => (await apiClient.delete(`/students/${studentId}`)).data,
   provisionAccount: async (studentId: string) =>
     (await apiClient.post<ProvisionedAccount>(`/students/${studentId}/account`)).data,
   provisionParentAccount: async (studentId: string, parentGuardianId: string) =>

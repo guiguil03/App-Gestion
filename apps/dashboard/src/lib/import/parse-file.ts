@@ -21,7 +21,7 @@ export async function parseImportFile(file: File): Promise<Record<string, string
   let workbook: XLSX.WorkBook;
   if (file.name.toLowerCase().endsWith('.csv')) {
     const text = await file.text();
-    workbook = XLSX.read(text, { type: 'string' });
+    workbook = XLSX.read(text, { type: 'string', cellDates: true });
   } else {
     const buffer = await file.arrayBuffer();
     workbook = XLSX.read(buffer, { type: 'array', cellDates: true });

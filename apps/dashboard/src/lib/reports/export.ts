@@ -85,3 +85,72 @@ export function exportAttendanceHistoryExcel(entries: AttendanceHistoryEntry[], 
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Historique');
   XLSX.writeFile(workbook, filename);
 }
+
+export type StudentDossierInfo = {
+  lastName: string;
+  middleName: string | null;
+  firstName: string;
+  sex: 'M' | 'F';
+  dateOfBirth: string;
+  schoolClass: { name: string; promotion: string };
+  parents: { fullName: string; relationship: string; phoneNumber: string }[];
+};
+
+const DOSSIER_COLUMNS = ['Date', 'Statut', 'Heure', 'Motif'] as const;
+
+function dossierRows(entries: AttendanceHistoryEntry[]): (string | number)[][] {
+  return entries.map((e) => [
+    e.date,
+    HISTORY_STATUS_LABEL[e.status],
+    e.recordedAt ? new Date(e.recordedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—',
+    e.status === 'ABSENT' ? (e.justified ? `Justifiée${e.justificationReason ? ` — ${e.justificationReason}` : ''}` : 'Non justifiée') : '—',
+  ]);
+}
+
+function dossierHeader(student: StudentDossierInfo): [name: string, infoLine: string, parentsLine: string] {
+  const name = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
+  const parentsLine = student.parents.length
+    ? student.parents.map((p) => `${p.fullName} (${p.relationship}) — ${p.phoneNumber}`).join(' · ')
+    : 'Aucun parent renseigné';
+  const infoLine = `${student.schoolClass.name} — ${student.schoolClass.promotion} · ${student.sex === 'M' ? 'Masculin' : 'Féminin'} · Né(e) le ${student.dateOfBirth}`;
+  return [name, infoLine, `Parent(s) : ${parentsLine}`];
+}
+
+/** Dossier complet d'un élève (fiche + historique de présence) — pour un
+ * transfert d'école ou une demande administrative. Réutilise le même
+ * historique que le rapport global, filtré sur un seul élève. */
+export function exportStudentDossierPdf(student: StudentDossierInfo, entries: AttendanceHistoryEntry[], filename: string): void {
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const [name, infoLine, parentsLine] = dossierHeader(student);
+  doc.setFontSize(15);
+  doc.text(`Dossier élève — ${name}`, 14, 16);
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text(infoLine, 14, 23);
+  doc.text(parentsLine, 14, 28);
+  doc.setTextColor(0);
+  autoTable(doc, {
+    head: [[...DOSSIER_COLUMNS]],
+    body: dossierRows(entries),
+    startY: 34,
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [15, 122, 92] },
+  });
+  doc.save(filename);
+}
+
+export function exportStudentDossierExcel(student: StudentDossierInfo, entries: AttendanceHistoryEntry[], filename: string): void {
+  const [name, infoLine, parentsLine] = dossierHeader(student);
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    [`Dossier élève — ${name}`],
+    [infoLine],
+    [parentsLine],
+    [],
+    [...DOSSIER_COLUMNS],
+    ...dossierRows(entries),
+  ]);
+  worksheet['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 30 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Dossier');
+  XLSX.writeFile(workbook, filename);
+}

@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -119,6 +120,22 @@ export class StudentsController {
       await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
     }
     return this.studentsService.updateStudent(studentId, dto, this.tenant.schoolId);
+  }
+
+  @Delete(':studentId')
+  @Roles('DIRECTION', 'ADMIN')
+  async remove(@Param('studentId') studentId: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.studentsService.remove(studentId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'students.delete',
+      targetType: 'student',
+      targetId: studentId,
+    });
+    return result;
   }
 
   @Post(':studentId/photo')

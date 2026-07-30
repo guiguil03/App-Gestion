@@ -6,4 +6,5 @@ export const staffApi = {
   create: async (input: { role: 'ENSEIGNANT' | 'SURVEILLANT' | 'DIRECTION'; firstName: string; lastName: string }) =>
     (await apiClient.post<ProvisionedStaffAccount>('/staff', input)).data,
   disable: async (userId: string) => (await apiClient.patch(`/staff/${userId}/disable`)).data,
+  resetPassword: async (userId: string) => (await apiClient.patch<ProvisionedStaffAccount>(`/staff/${userId}/reset-password`)).data,
 };

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 
 import { CommonModule } from '@/common/common.module';
 import { PrismaModule } from '@/database/prisma.module';
@@ -23,6 +25,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
@@ -44,5 +47,6 @@ import { SyncModule } from '@/modules/sync/sync.module';
     AdminModule,
     ReportsModule,
   ],
+  providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
 })
 export class AppModule {}

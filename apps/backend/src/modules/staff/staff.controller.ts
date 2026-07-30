@@ -33,6 +33,25 @@ export class StaffController {
     return this.staffService.create(dto, this.tenant.schoolId);
   }
 
+  // Retourne le mot de passe en clair une seule fois (idem create()) —
+  // pas de self-service : la Direction agit à la place du staff qui a
+  // perdu son mot de passe, aucun canal email/SMS n'existant pour ces comptes.
+  @Patch(':userId/reset-password')
+  @Roles('DIRECTION', 'ADMIN')
+  async resetPassword(@Param('userId') userId: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.staffService.resetPassword(userId, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'staff.reset_password',
+      targetType: 'user',
+      targetId: userId,
+    });
+    return result;
+  }
+
   @Patch(':userId/disable')
   @Roles('DIRECTION', 'ADMIN')
   async disable(@Param('userId') userId: string, @CurrentUser() user: AuthenticatedUser) {

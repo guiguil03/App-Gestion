@@ -13,6 +13,10 @@ export function useCreateStaff() {
   });
 }
 
+export function useResetStaffPassword() {
+  return useMutation({ mutationFn: (userId: string) => staffApi.resetPassword(userId) });
+}
+
 export function useDisableStaff() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -40,6 +40,22 @@ export class StaffService {
     });
   }
 
+  // Même contrat que create()/provisionAccount : le mot de passe en clair
+  // n'est retourné qu'une fois, la Direction doit le transmettre immédiatement.
+  // L'identifiant existant est conservé, seul le mot de passe change.
+  async resetPassword(userId: string, schoolId: string): Promise<ProvisionedStaffAccount> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, schoolId, role: { in: ['ENSEIGNANT', 'SURVEILLANT', 'DIRECTION'] } },
+    });
+    if (!user) throw new NotFoundException('Compte introuvable');
+
+    const password = generatePassword();
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    return { username: user.username, password };
+  }
+
   async disable(userId: string, schoolId: string, currentUserId: string) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, schoolId } });
     if (!user) throw new NotFoundException('Compte introuvable');

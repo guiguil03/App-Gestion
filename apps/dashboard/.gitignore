@@ -3,3 +3,6 @@ node_modules/
 .env.local
 *.tsbuildinfo
 .vercel
+
+# Sentry Config File
+.env.sentry-build-plugin

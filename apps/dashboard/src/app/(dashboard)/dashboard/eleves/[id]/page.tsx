@@ -2,17 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Download, Plus, Trash2, X } from 'lucide-react';
 import { StudentCardVisual } from '@/components/cards/student-card-visual';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
 import { useCardPrint } from '@/lib/cards/useCardPrint';
 import { useQrDataUrl } from '@/lib/cards/useQrDataUrl';
+import { reportsApi } from '@/lib/api/reports';
+import { exportStudentDossierExcel, exportStudentDossierPdf } from '@/lib/reports/export';
 import { useStudentAbsences, useJustifyAbsence } from '@/lib/hooks/useAbsences';
 import { useRecordManualAttendance } from '@/lib/hooks/useAttendance';
 import { useCards, useIssueCard, useRevokeCard } from '@/lib/hooks/useCards';
-import { useProvisionParentAccount, useProvisionStudentAccount, useStudent } from '@/lib/hooks/useStudents';
+import { useProvisionParentAccount, useProvisionStudentAccount, useRemoveStudent, useStudent } from '@/lib/hooks/useStudents';
 
 type ProvisionedCredentials = { label: string; username: string; password: string | null };
 
@@ -26,6 +28,7 @@ function isoTime(date: Date): string {
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const student = useStudent(id ?? null);
   const cards = useCards();
   const absences = useStudentAbsences(id ?? null);
@@ -33,12 +36,16 @@ export default function StudentDetailPage() {
   const revokeCard = useRevokeCard();
   const provisionStudentAccount = useProvisionStudentAccount();
   const provisionParentAccount = useProvisionParentAccount();
+  const removeStudent = useRemoveStudent();
   const justifyAbsence = useJustifyAbsence();
   const recordManualAttendance = useRecordManualAttendance();
   const cardPrint = useCardPrint();
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [showManualAttendance, setShowManualAttendance] = useState(false);
   const [manualDate, setManualDate] = useState(() => isoDate(new Date()));
   const [manualTime, setManualTime] = useState(() => isoTime(new Date()));
@@ -81,27 +88,89 @@ export default function StudentDetailPage() {
     setManualIsLate(false);
   }
 
+  async function handleRemoveStudent() {
+    await removeStudent.mutateAsync(s.id);
+    router.push('/dashboard/eleves');
+  }
+
+  async function handleExportDossier(format: 'pdf' | 'excel') {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const entries = await reportsApi.attendanceHistory({
+        studentId: s.id,
+        startDate: '2000-01-01',
+        endDate: isoDate(new Date()),
+      });
+      const safeName = fullName
+        .normalize('NFD')
+        .replace(/[^\x00-\x7F]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .toLowerCase();
+      if (format === 'pdf') {
+        exportStudentDossierPdf(s, entries, `dossier-${safeName}.pdf`);
+      } else {
+        exportStudentDossierExcel(s, entries, `dossier-${safeName}.xlsx`);
+      }
+    } catch {
+      setExportError('Impossible de générer le dossier. Réessaie.');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {cardPrint.portal}
       <BackLink />
 
-      <div className="flex items-center gap-4">
-        {s.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.photoUrl} alt={fullName} className="w-16 h-16 rounded-full object-cover" />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center text-xl font-semibold">
-            {fullName.charAt(0).toUpperCase()}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {s.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={s.photoUrl} alt={fullName} className="w-16 h-16 rounded-full object-cover" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center text-xl font-semibold">
+              {fullName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900">{fullName}</h1>
+            <p className="text-sm text-zinc-500">
+              {s.schoolClass.name} · {s.schoolClass.promotion}
+            </p>
           </div>
-        )}
-        <div>
-          <h1 className="text-xl font-bold text-zinc-900">{fullName}</h1>
-          <p className="text-sm text-zinc-500">
-            {s.schoolClass.name} · {s.schoolClass.promotion}
-          </p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled={isExporting}
+            onClick={() => void handleExportDossier('pdf')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            <Download size={14} /> Dossier PDF
+          </button>
+          <button
+            type="button"
+            disabled={isExporting}
+            onClick={() => void handleExportDossier('excel')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            <Download size={14} /> Dossier Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRemoveConfirm(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            <Trash2 size={14} /> Supprimer l&apos;élève
+          </button>
         </div>
       </div>
+
+      {exportError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{exportError}</div>
+      )}
 
       {credentials && (
         <CredentialsBanner
@@ -356,6 +425,17 @@ export default function StudentDetailPage() {
         onConfirm={() => {
           if (revokeTarget) revokeCard.mutate(revokeTarget, { onSuccess: () => setRevokeTarget(null) });
         }}
+      />
+
+      <ConfirmDialog
+        open={showRemoveConfirm}
+        tone="danger"
+        title="Supprimer cet élève ?"
+        description={`${fullName} sera retiré des listes et son compte de connexion (s'il existe) désactivé. L'historique de présence et les cartes déjà émises sont conservés.`}
+        confirmLabel="Supprimer"
+        isLoading={removeStudent.isPending}
+        onCancel={() => setShowRemoveConfirm(false)}
+        onConfirm={() => void handleRemoveStudent()}
       />
     </div>
   );
