@@ -3,17 +3,26 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 import { StudentCardVisual } from '@/components/cards/student-card-visual';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
 import { useCardPrint } from '@/lib/cards/useCardPrint';
 import { useQrDataUrl } from '@/lib/cards/useQrDataUrl';
 import { useStudentAbsences, useJustifyAbsence } from '@/lib/hooks/useAbsences';
+import { useRecordManualAttendance } from '@/lib/hooks/useAttendance';
 import { useCards, useIssueCard, useRevokeCard } from '@/lib/hooks/useCards';
 import { useProvisionParentAccount, useProvisionStudentAccount, useStudent } from '@/lib/hooks/useStudents';
 
 type ProvisionedCredentials = { label: string; username: string; password: string | null };
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function isoTime(date: Date): string {
+  return date.toTimeString().slice(0, 5);
+}
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,10 +34,15 @@ export default function StudentDetailPage() {
   const provisionStudentAccount = useProvisionStudentAccount();
   const provisionParentAccount = useProvisionParentAccount();
   const justifyAbsence = useJustifyAbsence();
+  const recordManualAttendance = useRecordManualAttendance();
   const cardPrint = useCardPrint();
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [showManualAttendance, setShowManualAttendance] = useState(false);
+  const [manualDate, setManualDate] = useState(() => isoDate(new Date()));
+  const [manualTime, setManualTime] = useState(() => isoTime(new Date()));
+  const [manualIsLate, setManualIsLate] = useState(false);
 
   const cardStatus = (cards.data ?? []).find((c) => c.student.id === id) ?? null;
   const qrDataUrl = useQrDataUrl(cardStatus?.activeCard?.qrCode ?? null);
@@ -56,6 +70,15 @@ export default function StudentDetailPage() {
       username: result.username,
       password: result.password,
     });
+  }
+
+  async function handleRecordManualAttendance() {
+    await recordManualAttendance.mutateAsync({
+      studentId: s.id,
+      input: { date: manualDate, time: manualTime, isLate: manualIsLate },
+    });
+    setShowManualAttendance(false);
+    setManualIsLate(false);
   }
 
   return (
@@ -204,7 +227,17 @@ export default function StudentDetailPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <h2 className="text-sm font-semibold text-zinc-700 p-5 pb-0">Absences</h2>
+        <div className="flex items-center justify-between p-5 pb-0">
+          <h2 className="text-sm font-semibold text-zinc-700">Absences</h2>
+          <button
+            type="button"
+            onClick={() => setShowManualAttendance(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+          >
+            <Plus size={14} />
+            Ajouter un pointage
+          </button>
+        </div>
         <div className="divide-y divide-slate-100 mt-3">
           {(absences.data ?? []).map((absence) => (
             <div key={absence.id} className="p-4 flex items-center justify-between gap-4">
@@ -235,6 +268,82 @@ export default function StudentDetailPage() {
           {absences.data?.length === 0 && <p className="p-4 text-sm text-zinc-400">Aucune absence.</p>}
         </div>
       </div>
+
+      {showManualAttendance && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setShowManualAttendance(false)}
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-zinc-900">Ajouter un pointage</h2>
+              <button
+                type="button"
+                onClick={() => setShowManualAttendance(false)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              À utiliser si le scan a été oublié côté mobile — enregistre la présence de {fullName} pour la date/heure
+              choisie et annule l&apos;absence déjà détectée ce jour-là, s&apos;il y en a une.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-500">Date</label>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-500">Heure</label>
+                  <input
+                    type="time"
+                    value={manualTime}
+                    onChange={(e) => setManualTime(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={manualIsLate}
+                  onChange={(e) => setManualIsLate(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Marquer comme en retard
+              </label>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowManualAttendance(false)}
+                className="rounded-lg border border-zinc-200 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRecordManualAttendance()}
+                disabled={recordManualAttendance.isPending}
+                className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {recordManualAttendance.isPending ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={revokeTarget !== null}

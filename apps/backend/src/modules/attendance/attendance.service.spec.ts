@@ -9,13 +9,16 @@ function buildDeps() {
       attendanceReferenceTime: '07:30',
       attendanceToleranceMinutes: 15,
     }) },
-    attendanceRecord: { upsert: jest.fn().mockResolvedValue({ id: 'record-1' }) },
+    attendanceRecord: {
+      upsert: jest.fn().mockResolvedValue({ id: 'record-1' }),
+      create: jest.fn().mockResolvedValue({ id: 'record-manual-1' }),
+    },
     absence: { deleteMany: jest.fn() },
   } as any;
   const students = { assertBelongsToSchool: jest.fn().mockResolvedValue({ id: 'student-1', schoolClassId: 'class-1' }) } as any;
   const events = { emit: jest.fn() } as any;
   const service = new AttendanceService(prisma, students, new LateDetectionService(), events);
-  return { service, prisma, students };
+  return { service, prisma, students, events };
 }
 
 describe('AttendanceService.recordFromSync — stale absence cleanup', () => {
@@ -175,5 +178,39 @@ describe('AttendanceService.recordFromSync — geofence and scan window', () => 
     );
 
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalled();
+  });
+});
+
+describe('AttendanceService.recordManual', () => {
+  it('creates a PORTAIL/ENTREE record with no geofence or scan-window check, and clears any stale absence for that day', async () => {
+    const { service, prisma, students } = buildDeps();
+
+    const result = await service.recordManual('student-1', 'school-1', { date: '2026-07-14', time: '08:15', isLate: true });
+
+    expect(students.assertBelongsToSchool).toHaveBeenCalledWith('student-1', 'school-1');
+    expect(prisma.attendanceRecord.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: 'student-1',
+          checkpoint: 'PORTAIL',
+          direction: 'ENTREE',
+          isLate: true,
+          recordedAt: new Date('2026-07-14T08:15:00'),
+        }),
+      }),
+    );
+    expect(prisma.absence.deleteMany).toHaveBeenCalledWith({ where: { studentId: 'student-1', date: '2026-07-14' } });
+    expect(result).toEqual({ id: 'record-manual-1' });
+  });
+
+  it('emits ATTENDANCE_RECORDED_EVENT like a real scan, so the parent notification pipeline fires', async () => {
+    const { service, events } = buildDeps();
+
+    await service.recordManual('student-1', 'school-1', { date: '2026-07-14', time: '08:15', isLate: false });
+
+    expect(events.emit).toHaveBeenCalledWith(
+      'attendance.recorded',
+      expect.objectContaining({ studentId: 'student-1', schoolId: 'school-1', isLate: false }),
+    );
   });
 });

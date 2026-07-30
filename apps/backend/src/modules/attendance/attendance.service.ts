@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Checkpoint, AttendanceDirection, Prisma } from '@prisma/client';
@@ -132,6 +134,47 @@ export class AttendanceService {
     this.events.emit(
       ATTENDANCE_RECORDED_EVENT,
       new AttendanceRecordedEvent(record.id, student.id, user.schoolId, isLate, recordedAt),
+    );
+
+    return record;
+  }
+
+  /**
+   * Correction administrative depuis le dashboard (fiche élève) — pour le
+   * cas où le pointage réel (scan carte/session) a été oublié côté mobile.
+   * Volontairement un override libre de la Direction : contrairement à
+   * `recordFromSync`, aucune vérification de périmètre GPS ni de plage
+   * horaire (une correction faite depuis un bureau n'a pas de position GPS
+   * pertinente). Même comportement que le pointage réel une fois créé :
+   * annule une absence déjà détectée pour ce jour, déclenche la même
+   * notification parent.
+   */
+  async recordManual(
+    studentId: string,
+    schoolId: string,
+    opts: { date: string; time: string; isLate: boolean },
+  ) {
+    const student = await this.students.assertBelongsToSchool(studentId, schoolId);
+    const recordedAt = new Date(`${opts.date}T${opts.time}:00`);
+
+    const record = await this.prisma.attendanceRecord.create({
+      data: {
+        id: randomUUID(),
+        studentId: student.id,
+        checkpoint: Checkpoint.PORTAIL,
+        direction: AttendanceDirection.ENTREE,
+        recordedAt,
+        isLate: opts.isLate,
+      },
+    });
+
+    this.logger.log(`Pointage manuel ${record.id} enregistré pour l'élève ${student.id} (retard=${opts.isLate})`);
+
+    await this.prisma.absence.deleteMany({ where: { studentId: student.id, date: dateKey(recordedAt) } });
+
+    this.events.emit(
+      ATTENDANCE_RECORDED_EVENT,
+      new AttendanceRecordedEvent(record.id, student.id, schoolId, opts.isLate, recordedAt),
     );
 
     return record;

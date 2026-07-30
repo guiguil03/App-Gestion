@@ -1,4 +1,4 @@
-# App Gestion — Présence Scolaire
+# App Gestion — PrésenceConnect
 
 Application de suivi de présence scolaire pour un établissement : gestion des
 fiches élèves, cartes QR, pointage (par carte ou par session), suivi parent.
