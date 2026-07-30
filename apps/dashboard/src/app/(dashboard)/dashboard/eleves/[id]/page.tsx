@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { StudentCardVisual } from '@/components/cards/student-card-visual';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CredentialsBanner } from '@/components/ui/credentials-banner';
 import { useCardPrint } from '@/lib/cards/useCardPrint';
 import { useQrDataUrl } from '@/lib/cards/useQrDataUrl';
 import { useStudentAbsences, useJustifyAbsence } from '@/lib/hooks/useAbsences';
@@ -26,6 +28,7 @@ export default function StudentDetailPage() {
   const cardPrint = useCardPrint();
   const [credentials, setCredentials] = useState<ProvisionedCredentials | null>(null);
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
 
   const cardStatus = (cards.data ?? []).find((c) => c.student.id === id) ?? null;
   const qrDataUrl = useQrDataUrl(cardStatus?.activeCard?.qrCode ?? null);
@@ -78,20 +81,15 @@ export default function StudentDetailPage() {
       </div>
 
       {credentials && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800">
-          {credentials.label} — identifiant <strong>{credentials.username}</strong>
-          {credentials.password ? (
-            <>
-              , mot de passe <strong>{credentials.password}</strong>. Note-le maintenant : il ne sera plus jamais
-              affiché.
-            </>
-          ) : (
-            ' (compte déjà existant, mot de passe non récupérable — utilise une régénération si besoin).'
-          )}
-        </div>
+        <CredentialsBanner
+          label={credentials.label}
+          username={credentials.username}
+          password={credentials.password}
+          onDismiss={() => setCredentials(null)}
+        />
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Informations</h2>
           <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -174,7 +172,7 @@ export default function StudentDetailPage() {
               <button
                 type="button"
                 disabled={revokeCard.isPending}
-                onClick={() => revokeCard.mutate(cardStatus.activeCard!.id)}
+                onClick={() => setRevokeTarget(cardStatus.activeCard!.id)}
                 className="col-span-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
               >
                 Révoquer cette carte
@@ -237,6 +235,19 @@ export default function StudentDetailPage() {
           {absences.data?.length === 0 && <p className="p-4 text-sm text-zinc-400">Aucune absence.</p>}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={revokeTarget !== null}
+        tone="danger"
+        title="Révoquer cette carte ?"
+        description="L'ancien QR code sera immédiatement invalidé. L'élève ne pourra plus pointer avec tant qu'une nouvelle carte n'est pas émise."
+        confirmLabel="Révoquer"
+        isLoading={revokeCard.isPending}
+        onCancel={() => setRevokeTarget(null)}
+        onConfirm={() => {
+          if (revokeTarget) revokeCard.mutate(revokeTarget, { onSuccess: () => setRevokeTarget(null) });
+        }}
+      />
     </div>
   );
 }

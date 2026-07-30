@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Sidebar } from '@/components/layout/sidebar';
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { decodeAccessToken } from '@/lib/auth/decode-access-token';
 import { AUTH_COOKIE } from '@/lib/auth/session-cookies';
 
@@ -16,10 +16,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     redirect('/admin');
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="ml-60 p-8">{children}</main>
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }

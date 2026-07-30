@@ -19,7 +19,12 @@ const NAV_LINKS = [
   { label: 'Profil', href: '/dashboard/profil', icon: UserCircle },
 ];
 
-export function Sidebar() {
+type SidebarProps = {
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export function Sidebar({ open = true, onClose }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { session, logout } = useAuth();
@@ -32,7 +37,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-60 z-50 flex flex-col bg-white border-r border-zinc-100 shadow-[2px_0_24px_rgba(0,0,0,0.04)]">
+    <aside
+      className={cn(
+        'fixed top-0 left-0 h-screen w-60 z-50 flex flex-col bg-white border-r border-zinc-100 shadow-[2px_0_24px_rgba(0,0,0,0.04)]',
+        'transform transition-transform duration-200 lg:translate-x-0',
+        open ? 'translate-x-0' : '-translate-x-full',
+      )}
+    >
       <div className="flex items-center gap-3 px-4 py-3.5">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">
           <span className="text-xs font-bold text-white tracking-tight">PS</span>
@@ -63,6 +74,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={cn(
                 'flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[13px] font-medium transition-all duration-150',
                 active ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900',

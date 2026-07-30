@@ -26,7 +26,7 @@ export default function DashboardOverviewPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {overview.isLoading ? (
           <>
             <KpiCardSkeleton />
@@ -56,7 +56,7 @@ export default function DashboardOverviewPage() {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-700 mb-4">Comparaison des classes</h2>
           <div className="space-y-2">

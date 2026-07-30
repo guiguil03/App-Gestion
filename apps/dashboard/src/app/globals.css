@@ -8,6 +8,17 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Zone d'impression des cartes élève (portail monté dans document.body par
    useCardPrint) — hors écran en usage normal, révélée seule à l'impression. */
 #card-print-area {

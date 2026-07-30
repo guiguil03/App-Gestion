@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import { StudentCardVisual } from '@/components/cards/student-card-visual';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useQrDataUrl } from '@/lib/cards/useQrDataUrl';
 import type { PrintableCard } from '@/lib/cards/useCardPrint';
 import type { StudentCardStatus } from '@/types/cards';
@@ -32,6 +34,7 @@ export function CardDetailPanel({
   const { student, activeCard, history } = status;
   const qrDataUrl = useQrDataUrl(activeCard?.qrCode ?? null);
   const fullName = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
@@ -84,7 +87,7 @@ export function CardDetailPanel({
               <button
                 type="button"
                 disabled={isRevoking}
-                onClick={() => onRevoke(activeCard.id)}
+                onClick={() => setConfirmRevoke(true)}
                 className="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
               >
                 {isRevoking ? 'Révocation…' : 'Révoquer cette carte'}
@@ -116,6 +119,20 @@ export function CardDetailPanel({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmRevoke}
+        tone="danger"
+        title="Révoquer cette carte ?"
+        description="L'ancien QR code sera immédiatement invalidé. L'élève ne pourra plus pointer avec tant qu'une nouvelle carte n'est pas émise."
+        confirmLabel="Révoquer"
+        isLoading={isRevoking}
+        onCancel={() => setConfirmRevoke(false)}
+        onConfirm={() => {
+          if (activeCard) onRevoke(activeCard.id);
+          setConfirmRevoke(false);
+        }}
+      />
     </div>
   );
 }

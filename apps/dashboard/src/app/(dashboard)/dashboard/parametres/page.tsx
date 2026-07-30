@@ -79,9 +79,9 @@ export default function ParametresPage() {
             Coordonnées GPS des 4 coins du terrain de l&apos;école. Un pointage effectué en dehors de ce périmètre
             n&apos;est pas enregistré. Laisse les 4 coins vides pour désactiver cette restriction.
           </p>
-          <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-2 items-end">
+              <div key={i} className="flex flex-wrap gap-2 items-end">
                 <span className="text-xs text-zinc-500 pb-2 w-14">Coin {i + 1}</span>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-zinc-500">Latitude</label>
