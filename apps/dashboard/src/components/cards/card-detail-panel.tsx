@@ -54,7 +54,12 @@ export function CardDetailPanel({
         </p>
 
         <div className="mt-5 flex justify-center">
-          <StudentCardVisual student={student} qrDataUrl={activeCard ? qrDataUrl : null} />
+          <StudentCardVisual
+            student={student}
+            qrDataUrl={activeCard ? qrDataUrl : null}
+            cardId={activeCard?.id}
+            issuedAt={activeCard?.issuedAt}
+          />
         </div>
 
         <div className="mt-5 space-y-2">
@@ -63,7 +68,7 @@ export function CardDetailPanel({
               <button
                 type="button"
                 disabled={isPrintBusy}
-                onClick={() => onPrint({ student, qrValue: activeCard.qrCode })}
+                onClick={() => onPrint({ student, qrValue: activeCard.qrCode, cardId: activeCard.id, issuedAt: activeCard.issuedAt })}
                 className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 {isPrintBusy ? 'Préparation…' : 'Imprimer'}
@@ -71,7 +76,9 @@ export function CardDetailPanel({
               <button
                 type="button"
                 disabled={isPrintBusy}
-                onClick={() => onDownloadPdf({ student, qrValue: activeCard.qrCode })}
+                onClick={() =>
+                  onDownloadPdf({ student, qrValue: activeCard.qrCode, cardId: activeCard.id, issuedAt: activeCard.issuedAt })
+                }
                 className="w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
               >
                 {isPrintBusy ? 'Préparation…' : 'Télécharger en PDF'}

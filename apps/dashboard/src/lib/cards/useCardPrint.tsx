@@ -7,7 +7,7 @@ import { generateCardsPdf } from '@/lib/cards/pdf';
 import { generateQrDataUrl } from '@/lib/cards/qr';
 import type { CardStudent } from '@/types/cards';
 
-export type PrintableCard = { student: CardStudent; qrValue: string };
+export type PrintableCard = { student: CardStudent; qrValue: string; cardId: string; issuedAt: string };
 
 /** Attend que toutes les <img> du conteneur soient chargées (ou en erreur), avec un filet de sécurité. */
 function waitForImages(container: HTMLElement, timeoutMs = 5000): Promise<void> {
@@ -31,14 +31,21 @@ function waitForImages(container: HTMLElement, timeoutMs = 5000): Promise<void> 
 
 /** Gère le rendu hors-écran des cartes élève à imprimer/exporter (portail vers document.body, cf. #card-print-area dans globals.css). */
 export function useCardPrint() {
-  const [entries, setEntries] = useState<{ student: CardStudent; qrDataUrl: string }[]>([]);
+  const [entries, setEntries] = useState<{ student: CardStudent; qrDataUrl: string; cardId: string; issuedAt: string }[]>(
+    [],
+  );
   const [busy, setBusy] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   async function prepare(cards: PrintableCard[]) {
     const resolved = await Promise.all(
-      cards.map(async (c) => ({ student: c.student, qrDataUrl: await generateQrDataUrl(c.qrValue) })),
+      cards.map(async (c) => ({
+        student: c.student,
+        qrDataUrl: await generateQrDataUrl(c.qrValue),
+        cardId: c.cardId,
+        issuedAt: c.issuedAt,
+      })),
     );
     nodeRefs.current.clear();
     setEntries(resolved);
@@ -84,6 +91,8 @@ export function useCardPrint() {
                   }}
                   student={entry.student}
                   qrDataUrl={entry.qrDataUrl}
+                  cardId={entry.cardId}
+                  issuedAt={entry.issuedAt}
                 />
               </div>
             ))}

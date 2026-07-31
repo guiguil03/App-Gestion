@@ -230,7 +230,12 @@ export default function StudentDetailPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Carte élève</h2>
           <div className="flex justify-center">
-            <StudentCardVisual student={s} qrDataUrl={cardStatus?.activeCard ? qrDataUrl : null} />
+            <StudentCardVisual
+              student={s}
+              qrDataUrl={cardStatus?.activeCard ? qrDataUrl : null}
+              cardId={cardStatus?.activeCard?.id}
+              issuedAt={cardStatus?.activeCard?.issuedAt}
+            />
           </div>
 
           {cardStatus?.activeCard ? (
@@ -238,7 +243,16 @@ export default function StudentDetailPage() {
               <button
                 type="button"
                 disabled={cardPrint.busy}
-                onClick={() => void cardPrint.print([{ student: s, qrValue: cardStatus.activeCard!.qrCode }])}
+                onClick={() =>
+                  void cardPrint.print([
+                    {
+                      student: s,
+                      qrValue: cardStatus.activeCard!.qrCode,
+                      cardId: cardStatus.activeCard!.id,
+                      issuedAt: cardStatus.activeCard!.issuedAt,
+                    },
+                  ])
+                }
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 Imprimer
@@ -247,7 +261,17 @@ export default function StudentDetailPage() {
                 type="button"
                 disabled={cardPrint.busy}
                 onClick={() =>
-                  void cardPrint.downloadPdf([{ student: s, qrValue: cardStatus.activeCard!.qrCode }], `carte-${s.lastName}.pdf`)
+                  void cardPrint.downloadPdf(
+                    [
+                      {
+                        student: s,
+                        qrValue: cardStatus.activeCard!.qrCode,
+                        cardId: cardStatus.activeCard!.id,
+                        issuedAt: cardStatus.activeCard!.issuedAt,
+                      },
+                    ],
+                    `carte-${s.lastName}.pdf`,
+                  )
                 }
                 className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
               >

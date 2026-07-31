@@ -3,6 +3,8 @@ export type CardStudent = {
   lastName: string;
   middleName: string | null;
   firstName: string;
+  sex: 'M' | 'F';
+  dateOfBirth: string;
   photoUrl: string | null;
   schoolClass: { id: string; name: string; promotion: string };
 };

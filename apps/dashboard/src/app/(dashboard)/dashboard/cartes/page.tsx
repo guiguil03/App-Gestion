@@ -55,7 +55,12 @@ function CartesPageContent() {
     () =>
       filtered
         .filter((c) => selectedIds.has(c.student.id) && c.activeCard)
-        .map((c) => ({ student: c.student, qrValue: c.activeCard!.qrCode })),
+        .map((c) => ({
+          student: c.student,
+          qrValue: c.activeCard!.qrCode,
+          cardId: c.activeCard!.id,
+          issuedAt: c.activeCard!.issuedAt,
+        })),
     [filtered, selectedIds],
   );
 

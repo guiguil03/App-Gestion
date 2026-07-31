@@ -80,6 +80,8 @@ export class CardsService {
           lastName: student.lastName,
           middleName: student.middleName,
           firstName: student.firstName,
+          sex: student.sex,
+          dateOfBirth: student.dateOfBirth,
           photoUrl: student.photoUrl,
           schoolClass: {
             id: student.schoolClass.id,
