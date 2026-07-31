@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Upload } from 'lucide-react';
+import { CreditCard, KeyRound, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CredentialsBanner } from '@/components/ui/credentials-banner';
@@ -260,7 +260,7 @@ function ElevesPageContent() {
                 const fullName = [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' ');
                 return (
                   <tr key={student.id}>
-                    <td className="p-3">
+                    <td className="p-3 align-top">
                       <div className="flex items-center gap-3">
                         {student.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -274,7 +274,7 @@ function ElevesPageContent() {
                             {fullName.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div>
+                        <div className="min-w-0">
                           <Link
                             href={`/dashboard/eleves/${student.id}`}
                             className="font-semibold text-zinc-900 hover:text-emerald-600"
@@ -287,34 +287,47 @@ function ElevesPageContent() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-3 text-zinc-500">{student.schoolClass.name}</td>
-                    <td className="p-3">
-                      {student.parents.length === 0 && <span className="text-xs text-zinc-400">Aucun parent</span>}
-                      <div className="space-y-1.5">
-                        {student.parents.map((parent) => (
-                          <div key={parent.id} className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-                            <span>
-                              {parent.fullName} ({parent.relationship}) — {parent.phoneNumber}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => void handleProvisionParent(student.id, parent.id, parent.fullName)}
-                              className="text-emerald-600 hover:text-emerald-700 font-medium whitespace-nowrap"
-                            >
-                              Provisionner compte parent
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                    <td className="p-3 align-top text-zinc-500">{student.schoolClass.name}</td>
+                    <td className="p-3 align-top">
+                      {student.parents.length === 0 ? (
+                        <span className="text-xs text-zinc-400">Aucun parent</span>
+                      ) : (
+                        <div className="space-y-2">
+                          {student.parents.map((parent) => (
+                            <div key={parent.id} className="rounded-lg bg-zinc-50 px-2.5 py-2">
+                              <p className="text-xs font-medium text-zinc-700">
+                                {parent.fullName}{' '}
+                                <span className="font-normal text-zinc-400">({parent.relationship})</span>
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-zinc-500">{parent.phoneNumber}</p>
+                              <button
+                                type="button"
+                                onClick={() => void handleProvisionParent(student.id, parent.id, parent.fullName)}
+                                className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-200 px-2 py-0.5 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50 whitespace-nowrap"
+                              >
+                                <KeyRound size={10} /> Provisionner
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
-                    <td className="p-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => void handleProvisionStudent(student.id, fullName)}
-                        className="text-xs font-medium text-emerald-600 hover:text-emerald-700 whitespace-nowrap"
-                      >
-                        Provisionner compte élève
-                      </button>
+                    <td className="p-3 align-top">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void handleProvisionStudent(student.id, fullName)}
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50 whitespace-nowrap"
+                        >
+                          <KeyRound size={11} /> Compte élève
+                        </button>
+                        <Link
+                          href={`/dashboard/cartes?studentId=${student.id}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 whitespace-nowrap"
+                        >
+                          <CreditCard size={11} /> Voir la carte
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

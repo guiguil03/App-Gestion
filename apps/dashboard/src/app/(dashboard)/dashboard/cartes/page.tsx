@@ -32,7 +32,9 @@ function CartesPageContent() {
   const [classFilter, setClassFilter] = useState(searchParams.get('classId') ?? '');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
+  // Permet un lien direct depuis la fiche/liste élève ("Voir la carte") sans
+  // devoir chercher l'élève dans la liste — ouvre directement son panneau carte.
+  const [detailStudentId, setDetailStudentId] = useState<string | null>(searchParams.get('studentId'));
   const [confirmBatchIssue, setConfirmBatchIssue] = useState(false);
 
   const filtered = useMemo(() => {
