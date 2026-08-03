@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
+import { router } from 'expo-router';
 import { QueryClient } from '@tanstack/react-query';
 
 import { clearAuthTokens, getAccessToken, getRefreshToken, saveAuthTokens } from '@/services/secureStorage';
@@ -84,6 +85,10 @@ apiClient.interceptors.response.use(
       return apiClient.request(originalRequest);
     } catch (refreshError) {
       await clearAuthTokens();
+      // Refresh token invalide/expiré : plus aucune requête ne peut aboutir,
+      // autant renvoyer vers le login tout de suite plutôt que de laisser
+      // l'utilisateur sur un écran qui échouera silencieusement.
+      router.replace('/(auth)/login');
       throw refreshError;
     }
   },

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
 import { Q } from '@nozbe/watermelondb';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,6 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Buffer } from 'buffer';
 
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
+import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOverlay';
 import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
 import { GeofenceRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
@@ -34,10 +36,16 @@ export default function ScanScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go.
-          Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran.
-        </ThemedText>
+        <ThemedView style={styles.centerContent}>
+          <Ionicons name="server-outline" size={40} color={theme.textSecondary} />
+          <ThemedText type="subtitle" style={styles.messageTitle}>
+            Base locale indisponible
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+            Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un
+            dev client (npx expo run:android ou EAS Build) pour tester cet écran.
+          </ThemedText>
+        </ThemedView>
       </ThemedView>
     );
   }
@@ -102,12 +110,20 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          L'accès à la caméra est nécessaire pour scanner les cartes élèves.
-        </ThemedText>
-        <ThemedText type="linkPrimary" onPress={requestPermission}>
-          Autoriser la caméra
-        </ThemedText>
+        <ThemedView style={styles.centerContent}>
+          <Ionicons name="camera-outline" size={40} color={theme.textSecondary} />
+          <ThemedText type="subtitle" style={styles.messageTitle}>
+            Accès caméra requis
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+            L'accès à la caméra est nécessaire pour scanner les cartes élèves.
+          </ThemedText>
+          <Pressable style={[styles.permissionButton, { backgroundColor: theme.primary }]} onPress={requestPermission}>
+            <ThemedText type="smallBold" style={styles.permissionButtonLabel}>
+              Autoriser la caméra
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
       </ThemedView>
     );
   }
@@ -119,16 +135,19 @@ export default function ScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={handleScan}
       />
+      <ScanFrameOverlay instruction="Cadre la carte élève à scanner" />
 
       <View style={styles.topBar}>
-        <ThemedView type="backgroundElement" style={styles.checkpointSwitch}>
+        <ThemedView style={styles.checkpointSwitch}>
           {(['portail', 'classe'] as const).map((option) => (
             <Pressable
               key={option}
               style={[styles.checkpointOption, checkpoint === option && { backgroundColor: theme.primary }]}
               onPress={() => setCheckpoint(option)}
             >
-              <ThemedText type="smallBold">{option === 'portail' ? 'Portail' : 'Salle de classe'}</ThemedText>
+              <ThemedText type="smallBold" style={checkpoint === option ? styles.checkpointLabelActive : undefined}>
+                {option === 'portail' ? 'Portail' : 'Salle de classe'}
+              </ThemedText>
             </Pressable>
           ))}
         </ThemedView>
@@ -147,9 +166,28 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+  },
+  messageTitle: {
+    marginTop: 8,
+    textAlign: 'center',
+  },
   message: {
     textAlign: 'center',
-    margin: 24,
+  },
+  permissionButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  permissionButtonLabel: {
+    color: '#FFFFFF',
   },
   topBar: {
     position: 'absolute',
@@ -163,12 +201,22 @@ const styles = StyleSheet.create({
   checkpointSwitch: {
     flex: 1,
     flexDirection: 'row',
-    borderRadius: 8,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: 14,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   checkpointOption: {
     flex: 1,
     paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
+  },
+  checkpointLabelActive: {
+    color: '#FFFFFF',
   },
 });

@@ -26,7 +26,7 @@ export function SyncStatusBadge() {
 
   if (!isOnline) {
     return (
-      <ThemedView type="backgroundElement" style={styles.badge}>
+      <ThemedView style={styles.badge}>
         <ThemedText type="smallBold">Hors ligne</ThemedText>
       </ThemedView>
     );
@@ -34,7 +34,7 @@ export function SyncStatusBadge() {
 
   if (pendingCount > 0) {
     return (
-      <ThemedView type="backgroundElement" style={styles.badge}>
+      <ThemedView style={styles.badge}>
         <ThemedText type="smallBold">
           {pendingCount} pointage{pendingCount > 1 ? 's' : ''} en attente
         </ThemedText>
@@ -51,8 +51,14 @@ const styles = StyleSheet.create({
     top: 100,
     left: 24,
     right: 24,
-    borderRadius: 8,
-    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: 14,
+    paddingVertical: 8,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

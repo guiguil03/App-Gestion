@@ -11,13 +11,15 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://presence-scolaire-backend-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://presence-scolaire-backend-production.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://366fba8fc091e507a044afa2432a6f67@o4511826621169664.ingest.de.sentry.io/4511826634670160"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://presence-scolaire-backend-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://presence-scolaire-backend-production.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://366fba8fc091e507a044afa2432a6f67@o4511826621169664.ingest.de.sentry.io/4511826634670160"
       }
     }
   },
