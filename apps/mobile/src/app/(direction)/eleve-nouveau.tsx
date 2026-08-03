@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Spacing } from '@/theme/theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
 import { useCreateStudent } from '@/features/students/hooks/useStudentMutations';
 
@@ -39,14 +40,13 @@ export default function EleveNouveauScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: Spacing.four,
   },
   title: {
-    fontSize: 24,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.four,
   },
   error: {
-    paddingHorizontal: 24,
-    marginTop: 8,
+    paddingHorizontal: Spacing.four,
+    marginTop: Spacing.two,
   },
 });

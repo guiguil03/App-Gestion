@@ -1,15 +1,17 @@
 // apps/mobile/src/app/(teacher)/session.tsx
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import AttendanceSession from '@/db/models/AttendanceSession';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 import { signSessionPayload } from '@/services/sessionSigning';
 
@@ -136,9 +138,7 @@ export default function SessionScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Session en cours
-      </ThemedText>
+      <ThemedText type="title">Session en cours</ThemedText>
       <ThemedText themeColor="textSecondary">
         Les élèves scannent ce QR pour valider leur présence — expire dans {minutes}:{seconds}
       </ThemedText>
@@ -151,12 +151,9 @@ export default function SessionScreen() {
         )}
       </View>
 
-      <Pressable
-        style={({ pressed }) => [styles.closeButton, { backgroundColor: theme.danger }, pressed && styles.pressed]}
-        onPress={closeSession}
-      >
-        <ThemedText style={styles.closeLabel}>Fermer la session</ThemedText>
-      </Pressable>
+      <View style={styles.closeButtonWrapper}>
+        <Button label="Fermer la session" variant="danger" onPress={closeSession} />
+      </View>
     </ThemedView>
   );
 }
@@ -164,36 +161,22 @@ export default function SessionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.five,
     alignItems: 'center',
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
+    gap: Spacing.three,
   },
   message: {
     textAlign: 'center',
-    margin: 24,
+    margin: Spacing.four,
   },
   qrWrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButton: {
+  closeButtonWrapper: {
     alignSelf: 'stretch',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  closeLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: Spacing.four,
   },
 });

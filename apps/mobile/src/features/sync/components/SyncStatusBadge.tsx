@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import type AttendanceRecord from '@/db/models/AttendanceRecord';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
+import { Elevation, Radius, Spacing } from '@/theme/theme';
 
 /** Indicateur discret : hors ligne, ou nombre de pointages pas encore remontés au backend. */
 export function SyncStatusBadge() {
@@ -49,16 +50,12 @@ const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: 100,
-    left: 24,
-    right: 24,
+    left: Spacing.four,
+    right: Spacing.four,
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 14,
-    paddingVertical: 8,
+    borderRadius: Radius.large,
+    paddingVertical: Spacing.two,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Elevation.level2,
   },
 });

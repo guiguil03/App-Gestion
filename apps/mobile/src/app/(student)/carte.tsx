@@ -3,10 +3,14 @@ import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import QRCodeView from 'react-native-qrcode-svg';
 
+import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import School from '@/db/models/School';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { Radius, Spacing } from '@/theme/theme';
 import { resolveApiUrl } from '@/api/client';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useMyStudentCard } from '@/features/students/hooks/useStudentCard';
@@ -34,18 +38,20 @@ export default function StudentCarteScreen() {
   if (isError || !student) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>{isError ? getStudentErrorMessage(error) : 'Impossible de charger ta fiche.'}</ThemedText>
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Impossible de charger ta fiche"
+          description={isError ? getStudentErrorMessage(error) : undefined}
+        />
       </ThemedView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Ma carte
-      </ThemedText>
+      <ScreenHeader title="Ma carte" />
 
-      <ThemedView type="backgroundElement" bordered style={styles.card}>
+      <Card style={styles.card} elevation="level2">
         {student.photoUrl && <Image source={{ uri: resolveApiUrl(student.photoUrl) }} style={styles.photo} />}
 
         <View style={styles.cardInfo}>
@@ -63,23 +69,23 @@ export default function StudentCarteScreen() {
         {cardResult ? (
           <QRCodeView value={cardResult.qrCode} size={220} />
         ) : (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.noCardMessage}>
             Aucune carte n'a encore été émise — contacte l'administration.
           </ThemedText>
         )}
-      </ThemedView>
+      </Card>
 
-      <ThemedView type="backgroundElement" bordered style={styles.section}>
+      <Card style={styles.section}>
         <ThemedText type="smallBold" style={styles.sectionTitle}>
           Mes informations
         </ThemedText>
         <InfoRow label="Post-nom" value={student.middleName ?? '—'} />
         <InfoRow label="Sexe" value={student.sex === 'F' ? 'Féminin' : 'Masculin'} />
         <InfoRow label="Date de naissance" value={student.dateOfBirth} />
-      </ThemedView>
+      </Card>
 
       {student.parents[0] && (
-        <ThemedView type="backgroundElement" bordered style={styles.section}>
+        <Card style={styles.section}>
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             Parent / tuteur
           </ThemedText>
@@ -90,7 +96,7 @@ export default function StudentCarteScreen() {
             <InfoRow label="Téléphone secondaire" value={student.parents[0].secondaryPhoneNumber} />
           )}
           {student.parents[0].address && <InfoRow label="Adresse" value={student.parents[0].address} />}
-        </ThemedView>
+        </Card>
       )}
     </ScrollView>
   );
@@ -110,40 +116,32 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 48,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 12,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.six - Spacing.two,
+    gap: Spacing.three,
   },
   card: {
-    borderRadius: 14,
-    padding: 16,
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.two,
   },
   photo: {
     width: 96,
     height: 120,
-    borderRadius: 8,
+    borderRadius: Radius.small,
   },
   cardInfo: {
     alignItems: 'center',
-    gap: 2,
+    gap: Spacing.half,
+  },
+  noCardMessage: {
+    textAlign: 'center',
   },
   section: {
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
+    gap: Spacing.two,
   },
   sectionTitle: {
-    marginBottom: 2,
+    marginBottom: Spacing.half,
   },
   infoRow: {
     flexDirection: 'row',

@@ -46,10 +46,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: 500,
   },
+  // Utilisé comme en-tête de page ("Élèves", "Historique"...) — toutes les
+  // valeurs concrètes utilisées avant ce composant convergeaient déjà vers
+  // ~24px, recopiées à la main dans chaque écran via un style local.
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 30,
   },
   subtitle: {
     fontSize: 32,

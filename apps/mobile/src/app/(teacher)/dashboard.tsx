@@ -1,11 +1,17 @@
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
+import { Avatar } from '@/components/avatar';
+import { Badge } from '@/components/badge';
 import { ChipSelector } from '@/components/chip-selector';
+import { EmptyState } from '@/components/empty-state';
+import { ListRow } from '@/components/list-row';
+import { ScreenHeader } from '@/components/screen-header';
+import { StatCard } from '@/components/stat-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassAttendanceSummary } from '@/features/attendance/hooks/useClassAttendanceSummary';
 import { useClassAttendanceTrend } from '@/features/attendance/hooks/useClassAttendanceTrend';
@@ -28,10 +34,11 @@ export default function TeacherDashboardScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Ce dashboard nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance
-          l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran.
-        </ThemedText>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Ce dashboard nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran."
+        />
       </ThemedView>
     );
   }
@@ -43,21 +50,14 @@ export default function TeacherDashboardScreen() {
   if (classes.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>Aucune classe assignée — contacte l'administration.</ThemedText>
+        <EmptyState icon="school-outline" title="Aucune classe assignée" description="Contacte l'administration." />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
-          Présence du jour
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.dateLabel}>
-          {TODAY_LABEL}
-        </ThemedText>
-      </View>
+      <ScreenHeader title="Présence du jour" subtitle={TODAY_LABEL} />
 
       {classes.length > 1 && (
         <ChipSelector
@@ -68,9 +68,9 @@ export default function TeacherDashboardScreen() {
       )}
 
       <View style={styles.summaryRow}>
-        <SummaryStat label="Présents" value={summary.presentCount} color={theme.success} icon="checkmark-circle" />
-        <SummaryStat label="En retard" value={summary.lateCount} color={theme.warning} icon="time" />
-        <SummaryStat label="Absents" value={summary.absentCount} color={theme.danger} icon="close-circle" />
+        <StatCard label="Présents" value={summary.presentCount} color={theme.success} icon="checkmark-circle" />
+        <StatCard label="En retard" value={summary.lateCount} color={theme.warning} icon="time" />
+        <StatCard label="Absents" value={summary.absentCount} color={theme.danger} icon="close-circle" />
       </View>
 
       <AttendanceTrendChart trend={trend} />
@@ -94,29 +94,12 @@ export default function TeacherDashboardScreen() {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" bordered style={styles.row}>
-            <ThemedView
-              style={[styles.avatar, { backgroundColor: item.isLate ? theme.warning : theme.success }]}
-            >
-              <ThemedText style={styles.avatarLabel}>{item.studentName.charAt(0).toUpperCase()}</ThemedText>
-            </ThemedView>
-
-            <View style={styles.rowContent}>
-              <ThemedText type="smallBold">{item.studentName}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {item.checkpoint === 'portail' ? 'Portail' : 'Salle de classe'} ·{' '}
-                {item.recordedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </ThemedText>
-            </View>
-
-            {item.isLate && (
-              <ThemedView style={[styles.lateBadge, { backgroundColor: theme.warning }]}>
-                <ThemedText type="small" style={styles.lateBadgeLabel}>
-                  Retard
-                </ThemedText>
-              </ThemedView>
-            )}
-          </ThemedView>
+          <ListRow
+            leading={<Avatar name={item.studentName} color={item.isLate ? theme.warning : theme.success} />}
+            title={item.studentName}
+            subtitle={`${item.checkpoint === 'portail' ? 'Portail' : 'Salle de classe'} · ${item.recordedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            trailing={item.isLate ? <Badge label="Retard" tone="warning" /> : undefined}
+          />
         )}
         ListEmptyComponent={
           <View style={styles.emptyList}>
@@ -124,33 +107,6 @@ export default function TeacherDashboardScreen() {
           </View>
         }
       />
-
-    </ThemedView>
-  );
-}
-
-function SummaryStat({
-  label,
-  value,
-  color,
-  icon,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}) {
-  return (
-    <ThemedView type="backgroundElement" bordered style={styles.summaryStat}>
-      <ThemedView style={[styles.summaryIcon, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={16} color="#ffffff" />
-      </ThemedView>
-      <ThemedText type="title" style={[styles.summaryValue, { color }]}>
-        {value}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
     </ThemedView>
   );
 }
@@ -158,99 +114,36 @@ function SummaryStat({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  header: {
-    gap: 2,
-  },
-  title: {
-    fontSize: 24,
-  },
-  dateLabel: {
-    textTransform: 'capitalize',
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  summaryStat: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
-    gap: 4,
-  },
-  summaryIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontSize: 26,
+    gap: Spacing.two + 2,
   },
   listHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.two,
   },
   sectionTitle: {
     flex: 0,
   },
   countBadge: {
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 8,
-    paddingBottom: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLabel: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  rowContent: {
-    flex: 1,
-    gap: 2,
-  },
-  lateBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  lateBadgeLabel: {
-    color: '#ffffff',
-    fontWeight: '700',
+    gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
   emptyList: {
-    paddingVertical: 24,
+    paddingVertical: Spacing.four,
     alignItems: 'center',
   },
 });

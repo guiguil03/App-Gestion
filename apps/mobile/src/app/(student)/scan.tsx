@@ -1,12 +1,12 @@
 // apps/mobile/src/app/(student)/scan.tsx
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
 import { Q } from '@nozbe/watermelondb';
 import { Buffer } from 'buffer';
 
-import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/button';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedView } from '@/components/themed-view';
 import AttendanceRecord from '@/db/models/AttendanceRecord';
 import School from '@/db/models/School';
@@ -16,7 +16,6 @@ import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/com
 import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOverlay';
 import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
 import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
-import { useTheme } from '@/hooks/use-theme';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 import { parseSessionQrCode, verifySessionSignature } from '@/services/sessionQr';
@@ -26,7 +25,6 @@ import { parseSessionQrCode, verifySessionSignature } from '@/services/sessionQr
 const RESCAN_COOLDOWN_MS = 4000;
 
 export default function StudentScanScreen() {
-  const theme = useTheme();
   const database = useOptionalDatabase();
   const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
@@ -36,16 +34,11 @@ export default function StudentScanScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.centerContent}>
-          <Ionicons name="server-outline" size={40} color={theme.textSecondary} />
-          <ThemedText type="subtitle" style={styles.messageTitle}>
-            Base locale indisponible
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-            Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un
-            dev client (npx expo run:android ou EAS Build) pour tester cet écran.
-          </ThemedText>
-        </ThemedView>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran."
+        />
       </ThemedView>
     );
   }
@@ -162,20 +155,12 @@ export default function StudentScanScreen() {
   if (!permission.granted) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.centerContent}>
-          <Ionicons name="camera-outline" size={40} color={theme.textSecondary} />
-          <ThemedText type="subtitle" style={styles.messageTitle}>
-            Accès caméra requis
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-            L'accès à la caméra est nécessaire pour scanner le QR de session affiché par l'enseignant.
-          </ThemedText>
-          <Pressable style={[styles.permissionButton, { backgroundColor: theme.primary }]} onPress={requestPermission}>
-            <ThemedText type="smallBold" style={styles.permissionButtonLabel}>
-              Autoriser la caméra
-            </ThemedText>
-          </Pressable>
-        </ThemedView>
+        <EmptyState
+          icon="camera-outline"
+          title="Accès caméra requis"
+          description="L'accès à la caméra est nécessaire pour scanner le QR de session affiché par l'enseignant."
+          action={<Button label="Autoriser la caméra" onPress={requestPermission} />}
+        />
       </ThemedView>
     );
   }
@@ -201,28 +186,5 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 32,
-  },
-  messageTitle: {
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  message: {
-    textAlign: 'center',
-  },
-  permissionButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  permissionButtonLabel: {
-    color: '#FFFFFF',
   },
 });

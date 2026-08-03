@@ -3,11 +3,15 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { Card } from '@/components/card';
 import { ChipSelector } from '@/components/chip-selector';
+import { EmptyState } from '@/components/empty-state';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassHistory } from '@/features/attendance/hooks/useClassHistory';
 
@@ -22,9 +26,11 @@ export default function HistoriqueScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go.
-        </ThemedText>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go."
+        />
       </ThemedView>
     );
   }
@@ -36,16 +42,14 @@ export default function HistoriqueScreen() {
   if (classes.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>Aucune classe assignée — contacte l'administration.</ThemedText>
+        <EmptyState icon="school-outline" title="Aucune classe assignée" description="Contacte l'administration." />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Historique
-      </ThemedText>
+      <ScreenHeader title="Historique" />
 
       {classes.length > 1 && (
         <ChipSelector
@@ -62,7 +66,7 @@ export default function HistoriqueScreen() {
         renderItem={({ item }) => {
           const isExpanded = expandedDayKey === item.dateKey;
           return (
-            <ThemedView type="backgroundElement" bordered style={styles.dayCard}>
+            <Card style={styles.dayCard}>
               <Pressable style={styles.dayHeader} onPress={() => setExpandedDayKey(isExpanded ? null : item.dateKey)}>
                 <View style={styles.dayHeaderText}>
                   <ThemedText type="smallBold" style={styles.dayLabel}>
@@ -94,7 +98,7 @@ export default function HistoriqueScreen() {
                     </ThemedText>
                   </View>
                 ))}
-            </ThemedView>
+            </Card>
           );
         }}
         ListEmptyComponent={
@@ -110,34 +114,25 @@ export default function HistoriqueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
   listContent: {
-    gap: 8,
-    paddingBottom: 8,
+    gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
   dayCard: {
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
+    gap: Spacing.two,
   },
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.two,
   },
   dayHeaderText: {
     flex: 1,
-    gap: 4,
+    gap: Spacing.one,
   },
   dayMetaRow: {
     flexDirection: 'row',
@@ -147,12 +142,12 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   recordRow: {
-    paddingLeft: 8,
-    paddingVertical: 4,
-    gap: 2,
+    paddingLeft: Spacing.two,
+    paddingVertical: Spacing.one,
+    gap: Spacing.half,
   },
   emptyList: {
-    paddingVertical: 24,
+    paddingVertical: Spacing.four,
     alignItems: 'center',
   },
 });

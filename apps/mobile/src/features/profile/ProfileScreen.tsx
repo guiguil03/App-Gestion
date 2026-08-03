@@ -1,14 +1,16 @@
 // apps/mobile/src/features/profile/ProfileScreen.tsx
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, View } from 'react-native';
 
 import { useLogout } from '@/api/hooks/useLogout';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import School from '@/db/models/School';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,7 +23,6 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function ProfileScreen() {
-  const theme = useTheme();
   const database = useOptionalDatabase();
   const logout = useLogout();
   const [username, setUsername] = useState<string | null>(null);
@@ -51,20 +52,15 @@ export function ProfileScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Profil
-      </ThemedText>
+      <ScreenHeader title="Profil" />
 
-      <ThemedView type="backgroundElement" bordered style={styles.card}>
+      <Card style={styles.card}>
         <ProfileRow label="Identifiant" value={username ?? '—'} />
         <ProfileRow label="Rôle" value={role ? (ROLE_LABELS[role] ?? role) : '—'} />
         <ProfileRow label="École" value={schoolName ?? '—'} />
-      </ThemedView>
+      </Card>
 
-      <Pressable style={[styles.logoutButton, { backgroundColor: theme.danger }]} onPress={logout}>
-        <Ionicons name="log-out-outline" size={18} color="#ffffff" />
-        <ThemedText style={styles.logoutLabel}>Déconnexion</ThemedText>
-      </Pressable>
+      <Button label="Déconnexion" variant="danger" icon="log-out-outline" onPress={logout} />
     </ThemedView>
   );
 }
@@ -83,34 +79,16 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 20,
-  },
-  title: {
-    fontSize: 24,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.four,
   },
   card: {
-    borderRadius: 14,
-    padding: 16,
-    gap: 14,
+    gap: Spacing.three,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  logoutLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

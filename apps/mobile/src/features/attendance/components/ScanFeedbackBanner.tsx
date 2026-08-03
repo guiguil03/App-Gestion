@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Elevation, Radius, Spacing } from '@/theme/theme';
 
 export type ScanFeedback =
   | { status: 'ok'; isLate: boolean }
@@ -111,19 +112,15 @@ const styles = StyleSheet.create({
   feedback: {
     position: 'absolute',
     bottom: 40,
-    left: 24,
-    right: 24,
+    left: Spacing.four,
+    right: Spacing.four,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: Spacing.two + 2,
+    paddingVertical: Spacing.three,
+    borderRadius: Radius.large,
+    ...Elevation.level2,
   },
   label: {
     color: '#ffffff',

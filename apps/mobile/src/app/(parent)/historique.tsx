@@ -2,11 +2,15 @@
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { Card } from '@/components/card';
 import { ChipSelector } from '@/components/chip-selector';
+import { EmptyState } from '@/components/empty-state';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { useChildren } from '@/features/children/hooks/useChildren';
 import { useChildHistory } from '@/features/attendance/hooks/useChildHistory';
 
@@ -32,9 +36,11 @@ export default function ParentHistoriqueScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go.
-        </ThemedText>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go."
+        />
       </ThemedView>
     );
   }
@@ -42,16 +48,14 @@ export default function ParentHistoriqueScreen() {
   if (children.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>Aucun enfant synchronisé pour le moment.</ThemedText>
+        <EmptyState icon="people-outline" title="Aucun enfant synchronisé" description="Réessaie plus tard." />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Historique
-      </ThemedText>
+      <ScreenHeader title="Historique" />
 
       {children.length > 1 && (
         <ChipSelector
@@ -66,7 +70,7 @@ export default function ParentHistoriqueScreen() {
         keyExtractor={(day) => day.dateKey}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" bordered style={styles.dayCard}>
+          <Card style={styles.dayCard}>
             <ThemedText type="smallBold" style={styles.dayLabel}>
               {item.dateLabel}
             </ThemedText>
@@ -79,7 +83,7 @@ export default function ParentHistoriqueScreen() {
                 {record.recordedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </ThemedText>
             ))}
-          </ThemedView>
+          </Card>
         )}
         ListEmptyComponent={
           <View style={styles.emptyList}>
@@ -94,31 +98,22 @@ export default function ParentHistoriqueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
   listContent: {
-    gap: 8,
-    paddingBottom: 8,
+    gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
   dayCard: {
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    gap: Spacing.one,
   },
   dayLabel: {
     textTransform: 'capitalize',
   },
   emptyList: {
-    paddingVertical: 24,
+    paddingVertical: Spacing.four,
     alignItems: 'center',
   },
 });

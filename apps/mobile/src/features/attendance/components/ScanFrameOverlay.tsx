@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing } from '@/theme/theme';
 
 const FRAME_SIZE = 260;
 const CORNER_SIZE = 32;
@@ -51,8 +52,8 @@ const styles = StyleSheet.create({
   },
   bottomRow: {
     alignItems: 'center',
-    paddingTop: 28,
-    paddingHorizontal: 32,
+    paddingTop: Spacing.four + 4,
+    paddingHorizontal: Spacing.five,
   },
   middleRow: {
     height: FRAME_SIZE,
@@ -77,28 +78,28 @@ const styles = StyleSheet.create({
     left: 0,
     borderTopWidth: CORNER_THICKNESS,
     borderLeftWidth: CORNER_THICKNESS,
-    borderTopLeftRadius: 12,
+    borderTopLeftRadius: Radius.medium,
   },
   cornerTopRight: {
     top: 0,
     right: 0,
     borderTopWidth: CORNER_THICKNESS,
     borderRightWidth: CORNER_THICKNESS,
-    borderTopRightRadius: 12,
+    borderTopRightRadius: Radius.medium,
   },
   cornerBottomLeft: {
     bottom: 0,
     left: 0,
     borderBottomWidth: CORNER_THICKNESS,
     borderLeftWidth: CORNER_THICKNESS,
-    borderBottomLeftRadius: 12,
+    borderBottomLeftRadius: Radius.medium,
   },
   cornerBottomRight: {
     bottom: 0,
     right: 0,
     borderBottomWidth: CORNER_THICKNESS,
     borderRightWidth: CORNER_THICKNESS,
-    borderBottomRightRadius: 12,
+    borderBottomRightRadius: Radius.medium,
   },
   instruction: {
     color: '#FFFFFF',

@@ -6,9 +6,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BackButton } from '@/components/back-button';
+import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/theme/theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
@@ -19,7 +22,6 @@ import {
 } from '@/features/students/hooks/useStudentMutations';
 
 export default function EleveDetailScreen() {
-  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: student, isLoading, isError, error } = useStudent(id ?? null);
   const { mutate: updateStudent, isPending: isUpdating } = useUpdateStudent(id as string);
@@ -65,7 +67,7 @@ export default function EleveDetailScreen() {
     return (
       <ThemedView style={styles.container}>
         <BackButton />
-        <ThemedText style={[styles.message, { color: theme.danger }]}>{getStudentErrorMessage(error)}</ThemedText>
+        <EmptyState icon="alert-circle-outline" title="Erreur" description={getStudentErrorMessage(error)} />
       </ThemedView>
     );
   }
@@ -82,7 +84,7 @@ export default function EleveDetailScreen() {
     <ThemedView style={styles.container}>
       <BackButton />
       <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title">
           {student.firstName} {student.lastName}
         </ThemedText>
       </View>
@@ -108,12 +110,12 @@ export default function EleveDetailScreen() {
       </View>
 
       {accountInfo && (
-        <ThemedView type="backgroundElement" bordered style={styles.accountBox}>
+        <Card style={styles.accountBox}>
           <ThemedText type="smallBold">Identifiants générés (à noter, non récupérables ensuite) :</ThemedText>
           <ThemedText type="small">
             {accountInfo.username} / {accountInfo.password}
           </ThemedText>
-        </ThemedView>
+        </Card>
       )}
 
       <StudentForm
@@ -169,39 +171,30 @@ function ActionButton({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: Spacing.four,
   },
   header: {
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 22,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 24,
-    marginTop: 12,
+    gap: Spacing.two + 2,
+    paddingHorizontal: Spacing.four,
+    marginTop: Spacing.two,
   },
   actionButton: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 12,
+    gap: Spacing.one,
+    paddingVertical: Spacing.two + 4,
+    borderRadius: Radius.medium,
   },
   actionDisabled: {
     opacity: 0.6,
   },
   accountBox: {
-    marginHorizontal: 24,
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.two,
+    gap: Spacing.one,
   },
 });

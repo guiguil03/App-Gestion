@@ -5,9 +5,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BackButton } from '@/components/back-button';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/theme/theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
@@ -51,7 +53,7 @@ export default function EnfantDetailScreen() {
     return (
       <ThemedView style={styles.container}>
         <BackButton />
-        <ThemedText style={[styles.message, { color: theme.danger }]}>{getStudentErrorMessage(error)}</ThemedText>
+        <EmptyState icon="alert-circle-outline" title="Erreur" description={getStudentErrorMessage(error)} />
       </ThemedView>
     );
   }
@@ -68,7 +70,7 @@ export default function EnfantDetailScreen() {
     <ThemedView style={styles.container}>
       <BackButton />
       <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title">
           {student.firstName} {student.lastName}
         </ThemedText>
       </View>
@@ -113,32 +115,25 @@ export default function EnfantDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: Spacing.four,
   },
   header: {
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 22,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 24,
-    marginTop: 12,
+    gap: Spacing.two + 2,
+    paddingHorizontal: Spacing.four,
+    marginTop: Spacing.two,
   },
   actionButton: {
     flex: 1,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.medium,
   },
   actionDisabled: {
     opacity: 0.6,

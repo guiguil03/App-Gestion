@@ -1,20 +1,14 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { getLoginErrorMessage, useLogin } from '@/api/hooks/useLogin';
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Elevation, Radius, Spacing } from '@/theme/theme';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { initialRouteForRole } from '@/navigation/roleGuard';
 
@@ -115,22 +109,7 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: theme.primary },
-            !canSubmit && styles.buttonDisabled,
-            pressed && canSubmit && styles.buttonPressed,
-          ]}
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-        >
-          {isPending ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <ThemedText style={styles.buttonLabel}>Se connecter</ThemedText>
-          )}
-        </Pressable>
+        <Button label="Se connecter" onPress={handleSubmit} disabled={!canSubmit} loading={isPending} />
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -144,17 +123,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingBottom: 24,
+    gap: Spacing.two,
+    paddingBottom: Spacing.four,
   },
   logoBadge: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: Radius.full,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.two,
   },
   appName: {
     fontSize: 24,
@@ -166,62 +145,41 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   card: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 40,
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
+    borderTopLeftRadius: Radius.xlarge,
+    borderTopRightRadius: Radius.xlarge,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four + 4,
+    paddingBottom: Spacing.five + 8,
+    gap: Spacing.three,
+    ...Elevation.level2,
   },
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: Spacing.one,
   },
   field: {
-    gap: 6,
+    gap: Spacing.one + 2,
   },
   label: {
-    marginLeft: 2,
+    marginLeft: Spacing.half,
   },
   input: {
     borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.three,
     fontSize: 16,
-  },
-  button: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: Spacing.two,
+    borderRadius: Radius.small + 2,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
   error: {
     flex: 1,

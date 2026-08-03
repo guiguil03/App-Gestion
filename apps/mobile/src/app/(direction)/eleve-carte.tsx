@@ -1,23 +1,25 @@
 // apps/mobile/src/app/(direction)/eleve-carte.tsx
 import { useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Image, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import QRCodeView from 'react-native-qrcode-svg';
 
 import { BackButton } from '@/components/back-button';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { resolveApiUrl } from '@/api/client';
-import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/theme/theme';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
 import { useIssueStudentCard, useStudentCard } from '@/features/students/hooks/useStudentCard';
 import { buildQrCodeSvg } from '@/services/qrSvg';
 
 export default function EleveCarteScreen() {
-  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: student, isLoading: studentLoading, isError, error } = useStudent(id ?? null);
   const { data: cardResult, isLoading: cardLoading } = useStudentCard(id ?? null);
@@ -28,7 +30,7 @@ export default function EleveCarteScreen() {
     return (
       <ThemedView style={styles.container}>
         <BackButton />
-        <ThemedText style={[styles.message, { color: theme.danger }]}>{getStudentErrorMessage(error)}</ThemedText>
+        <EmptyState icon="alert-circle-outline" title="Erreur" description={getStudentErrorMessage(error)} />
       </ThemedView>
     );
   }
@@ -73,12 +75,10 @@ export default function EleveCarteScreen() {
   return (
     <ThemedView style={styles.container}>
       <BackButton />
-      <ThemedText type="title" style={styles.title}>
-        Carte élève
-      </ThemedText>
+      <ThemedText type="title">Carte élève</ThemedText>
 
-      <View style={styles.card}>
-        <ThemedView type="backgroundElement" bordered style={styles.cardInner}>
+      <View style={styles.cardWrapper}>
+        <Card style={styles.cardInner} elevation="level2">
           {student.photoUrl && <Image source={{ uri: resolveApiUrl(student.photoUrl) }} style={styles.photo} />}
 
           <View style={styles.cardInfo}>
@@ -97,38 +97,25 @@ export default function EleveCarteScreen() {
               Aucune carte
             </ThemedText>
           )}
-        </ThemedView>
+        </Card>
       </View>
 
       {cardResult ? (
         <>
-          <Pressable
-            style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, pressed && styles.pressed]}
+          <Button
+            label={isExporting ? 'Génération…' : 'Imprimer / Exporter (PDF)'}
             onPress={handleExport}
             disabled={isExporting}
-          >
-            <ThemedText style={styles.buttonLabel}>
-              {isExporting ? 'Génération…' : 'Imprimer / Exporter (PDF)'}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.button, { backgroundColor: theme.danger }, pressed && styles.pressed]}
+          />
+          <Button
+            label={isIssuing ? 'Génération…' : 'Perte/vol — réémettre une nouvelle carte'}
+            variant="danger"
             onPress={handleIssue}
             disabled={isIssuing}
-          >
-            <ThemedText style={styles.buttonLabel}>
-              {isIssuing ? 'Génération…' : 'Perte/vol — réémettre une nouvelle carte'}
-            </ThemedText>
-          </Pressable>
+          />
         </>
       ) : (
-        <Pressable
-          style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, pressed && styles.pressed]}
-          onPress={handleIssue}
-          disabled={isIssuing}
-        >
-          <ThemedText style={styles.buttonLabel}>{isIssuing ? 'Émission…' : 'Émettre la carte'}</ThemedText>
-        </Pressable>
+        <Button label={isIssuing ? 'Émission…' : 'Émettre la carte'} onPress={handleIssue} disabled={isIssuing} />
       )}
     </ThemedView>
   );
@@ -183,47 +170,25 @@ function buildCardHtml({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
-  message: {
-    textAlign: 'center',
-    margin: 24,
-  },
-  title: {
-    fontSize: 24,
-  },
-  card: {
+  cardWrapper: {
     alignItems: 'center',
   },
   cardInner: {
     width: '100%',
-    borderRadius: 14,
-    padding: 16,
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.two,
   },
   photo: {
     width: 96,
     height: 120,
-    borderRadius: 8,
+    borderRadius: Radius.small,
   },
   cardInfo: {
     alignItems: 'center',
-    gap: 2,
-  },
-  button: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  buttonLabel: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+    gap: Spacing.half,
   },
 });

@@ -79,5 +79,35 @@ export const Spacing = {
   six: 64,
 } as const;
 
+// Échelle de rayons partagée par tous les composants — remplace les valeurs
+// éparpillées (8/10/12/14/18/20/28px) qui variaient d'un écran à l'autre.
+export const Radius = {
+  small: 8,
+  medium: 12,
+  large: 16,
+  xlarge: 28,
+  full: 999,
+} as const;
+
+// Élévation façon Material 3 : ombre douce partagée par les cartes et
+// éléments flottants (bannières, badges) — remplace les shadow* recopiés à
+// l'identique dans chaque écran.
+export const Elevation = {
+  level1: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  level2: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

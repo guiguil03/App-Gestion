@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
 import { Q } from '@nozbe/watermelondb';
 
+import { Button } from '@/components/button';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Elevation, Radius, Spacing } from '@/theme/theme';
 import { Buffer } from 'buffer';
 
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
@@ -36,16 +38,11 @@ export default function ScanScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.centerContent}>
-          <Ionicons name="server-outline" size={40} color={theme.textSecondary} />
-          <ThemedText type="subtitle" style={styles.messageTitle}>
-            Base locale indisponible
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-            Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un
-            dev client (npx expo run:android ou EAS Build) pour tester cet écran.
-          </ThemedText>
-        </ThemedView>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Le scan de présence nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran."
+        />
       </ThemedView>
     );
   }
@@ -110,20 +107,12 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.centerContent}>
-          <Ionicons name="camera-outline" size={40} color={theme.textSecondary} />
-          <ThemedText type="subtitle" style={styles.messageTitle}>
-            Accès caméra requis
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-            L'accès à la caméra est nécessaire pour scanner les cartes élèves.
-          </ThemedText>
-          <Pressable style={[styles.permissionButton, { backgroundColor: theme.primary }]} onPress={requestPermission}>
-            <ThemedText type="smallBold" style={styles.permissionButtonLabel}>
-              Autoriser la caméra
-            </ThemedText>
-          </Pressable>
-        </ThemedView>
+        <EmptyState
+          icon="camera-outline"
+          title="Accès caméra requis"
+          description="L'accès à la caméra est nécessaire pour scanner les cartes élèves."
+          action={<Button label="Autoriser la caméra" onPress={requestPermission} />}
+        />
       </ThemedView>
     );
   }
@@ -166,54 +155,27 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 32,
-  },
-  messageTitle: {
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  message: {
-    textAlign: 'center',
-  },
-  permissionButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  permissionButtonLabel: {
-    color: '#FFFFFF',
-  },
   topBar: {
     position: 'absolute',
     top: 48,
-    left: 24,
-    right: 24,
+    left: Spacing.four,
+    right: Spacing.four,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.two + 4,
   },
   checkpointSwitch: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 14,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: Radius.large,
+    padding: Spacing.one,
+    ...Elevation.level2,
   },
   checkpointOption: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.medium,
     alignItems: 'center',
   },
   checkpointLabelActive: {

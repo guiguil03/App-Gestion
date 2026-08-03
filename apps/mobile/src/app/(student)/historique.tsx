@@ -2,10 +2,14 @@
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { useChildHistory } from '@/features/attendance/hooks/useChildHistory';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 
@@ -23,25 +27,25 @@ export default function StudentHistoriqueScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go.
-        </ThemedText>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go."
+        />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Historique
-      </ThemedText>
+      <ScreenHeader title="Historique" />
 
       <FlatList
         data={days}
         keyExtractor={(day) => day.dateKey}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" bordered style={styles.dayCard}>
+          <Card style={styles.dayCard}>
             <ThemedText type="smallBold" style={styles.dayLabel}>
               {item.dateLabel}
             </ThemedText>
@@ -54,7 +58,7 @@ export default function StudentHistoriqueScreen() {
                 {record.recordedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </ThemedText>
             ))}
-          </ThemedView>
+          </Card>
         )}
         ListEmptyComponent={
           <View style={styles.emptyList}>
@@ -69,31 +73,22 @@ export default function StudentHistoriqueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
   listContent: {
-    gap: 8,
-    paddingBottom: 8,
+    gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
   dayCard: {
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    gap: Spacing.one,
   },
   dayLabel: {
     textTransform: 'capitalize',
   },
   emptyList: {
-    paddingVertical: 24,
+    paddingVertical: Spacing.four,
     alignItems: 'center',
   },
 });

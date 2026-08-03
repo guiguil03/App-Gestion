@@ -1,14 +1,20 @@
 // apps/mobile/src/app/(teacher)/classe.tsx
-import { FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { resolveApiUrl } from '@/api/client';
+import { Avatar } from '@/components/avatar';
+import { Button } from '@/components/button';
 import { ChipSelector } from '@/components/chip-selector';
+import { EmptyState } from '@/components/empty-state';
+import { ListRow } from '@/components/list-row';
+import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useClassRoster, type RosterStatus } from '@/features/classes/hooks/useClassRoster';
 import type { ThemeColor } from '@/theme/theme';
@@ -29,10 +35,11 @@ export default function ClasseScreen() {
   if (!database) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>
-          Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app
-          via un dev client (npx expo run:android ou EAS Build) pour tester cet écran.
-        </ThemedText>
+        <EmptyState
+          icon="server-outline"
+          title="Base locale indisponible"
+          description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran."
+        />
       </ThemedView>
     );
   }
@@ -44,16 +51,14 @@ export default function ClasseScreen() {
   if (classes.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.message}>Aucune classe assignée — contacte l'administration.</ThemedText>
+        <EmptyState icon="school-outline" title="Aucune classe assignée" description="Contacte l'administration." />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Classe
-      </ThemedText>
+      <ScreenHeader title="Classe" />
 
       {classes.length > 1 && (
         <ChipSelector
@@ -64,17 +69,7 @@ export default function ClasseScreen() {
       )}
 
       {selectedClassId && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.sessionButton,
-            { backgroundColor: theme.primary },
-            pressed && styles.sessionButtonPressed,
-          ]}
-          onPress={() => router.push('/(teacher)/session')}
-        >
-          <Ionicons name="qr-code-outline" size={18} color="#ffffff" />
-          <ThemedText style={styles.sessionButtonLabel}>Créer une session</ThemedText>
-        </Pressable>
+        <Button label="Créer une session" icon="qr-code-outline" onPress={() => router.push('/(teacher)/session')} />
       )}
 
       <FlatList
@@ -82,28 +77,29 @@ export default function ClasseScreen() {
         keyExtractor={(entry) => entry.studentId}
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" bordered style={styles.row}>
-            {item.photoUrl ? (
-              <Image source={{ uri: resolveApiUrl(item.photoUrl) }} style={styles.avatarPhoto} />
-            ) : (
-              <ThemedView style={[styles.avatar, { backgroundColor: theme[STATUS_CONFIG[item.status].colorToken] }]}>
-                <ThemedText style={styles.avatarLabel}>{item.studentName.charAt(0).toUpperCase()}</ThemedText>
-              </ThemedView>
-            )}
-            <ThemedText type="smallBold" style={styles.rowName}>
-              {item.studentName}
-            </ThemedText>
-            <Ionicons
-              name={STATUS_CONFIG[item.status].icon}
-              size={16}
-              color={theme[STATUS_CONFIG[item.status].colorToken]}
+        renderItem={({ item }) => {
+          const status = STATUS_CONFIG[item.status];
+          return (
+            <ListRow
+              leading={
+                <Avatar
+                  name={item.studentName}
+                  photoUrl={item.photoUrl ? resolveApiUrl(item.photoUrl) : null}
+                  color={theme[status.colorToken]}
+                />
+              }
+              title={item.studentName}
+              trailing={
+                <View style={styles.statusTag}>
+                  <Ionicons name={status.icon} size={16} color={theme[status.colorToken]} />
+                  <ThemedText type="small" style={{ color: theme[status.colorToken] }}>
+                    {status.label}
+                  </ThemedText>
+                </View>
+              }
             />
-            <ThemedText type="small" style={{ color: theme[STATUS_CONFIG[item.status].colorToken] }}>
-              {STATUS_CONFIG[item.status].label}
-            </ThemedText>
-          </ThemedView>
-        )}
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyList}>
             <ThemedText themeColor="textSecondary">Aucun élève dans cette classe.</ThemedText>
@@ -117,69 +113,24 @@ export default function ClasseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-  },
-  message: {
-    textAlign: 'center',
-    margin: 24,
-  },
-  sessionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingVertical: 12,
-  },
-  sessionButtonPressed: {
-    opacity: 0.85,
-  },
-  sessionButtonLabel: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    gap: Spacing.three,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 8,
-    paddingBottom: 8,
+    gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
-  row: {
+  statusTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    gap: 10,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarPhoto: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  avatarLabel: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  rowName: {
-    flex: 1,
+    gap: Spacing.one,
   },
   emptyList: {
-    paddingVertical: 24,
+    paddingVertical: Spacing.four,
     alignItems: 'center',
   },
 });
