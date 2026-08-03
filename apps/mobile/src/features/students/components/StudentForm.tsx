@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -27,11 +27,14 @@ export function StudentForm({
   submitLabel,
   onSubmit,
   isSubmitting,
+  footer,
 }: {
   initialValues?: Partial<StudentFormValues>;
   submitLabel: string;
   onSubmit: (values: StudentFormValues) => void;
   isSubmitting: boolean;
+  /** Actions additionnelles rendues sous le bouton de soumission, dans la même zone scrollable (ex. suppression). */
+  footer?: ReactNode;
 }) {
   const { classes } = useSchoolClasses();
   const [values, setValues] = useState<StudentFormValues>({
@@ -81,7 +84,7 @@ export function StudentForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Section title="Identité">
         <Field label="Nom *" value={values.lastName} onChangeText={(v) => set('lastName', v)} />
         <Field label="Post-nom" value={values.middleName ?? ''} onChangeText={(v) => set('middleName', v)} />
@@ -148,6 +151,7 @@ export function StudentForm({
       </Section>
 
       <Button label={submitLabel} onPress={handleSubmit} disabled={!canSubmit} loading={isSubmitting} />
+      {footer}
     </ScrollView>
   );
 }
@@ -195,6 +199,9 @@ function Field({
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: Spacing.four,
     gap: Spacing.three,

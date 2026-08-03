@@ -25,13 +25,20 @@ function buildPrisma(overrides: Record<string, any> = {}) {
     schoolClass: { findFirst: jest.fn().mockResolvedValue({ id: 'class-1' }), ...overrides.schoolClass },
     user: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       upsert: jest.fn(),
       ...overrides.user,
     },
-    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+    // Supporte les deux formes utilisées par le service : tableau de
+    // promesses (`$transaction([...])`) et transaction interactive
+    // (`$transaction(async (tx) => {...})`, qui reçoit ce même objet mocké).
+    $transaction: jest.fn(function (this: any, arg: unknown) {
+      if (typeof arg === 'function') return arg(this);
+      return Promise.all(arg as Promise<unknown>[]);
+    }),
   } as any;
 }
 
@@ -193,6 +200,51 @@ describe('StudentsService.remove', () => {
       where: { studentId: 's1', disabledAt: null },
       data: { disabledAt: expect.any(Date) },
     });
+  });
+
+  it("disables a PARENT account whose last active child is the one being deleted", async () => {
+    const { service, prisma } = buildService({
+      student: {
+        findFirst: jest.fn().mockResolvedValue({ id: 's1', schoolId: 'school-1' }),
+        update: jest.fn().mockResolvedValue({ id: 's1', deletedAt: new Date() }),
+        count: jest.fn().mockResolvedValue(0), // plus aucun enfant actif pour ce parent
+      },
+      user: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'parent-1' }]),
+        update: jest.fn(),
+      },
+    });
+
+    await service.remove('s1', 'school-1');
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: { role: 'PARENT', disabledAt: null, children: { some: { id: 's1' } } },
+      select: { id: true },
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'parent-1' },
+      data: { disabledAt: expect.any(Date) },
+    });
+  });
+
+  it('leaves a PARENT account active when they still have another active child', async () => {
+    const { service, prisma } = buildService({
+      student: {
+        findFirst: jest.fn().mockResolvedValue({ id: 's1', schoolId: 'school-1' }),
+        update: jest.fn().mockResolvedValue({ id: 's1', deletedAt: new Date() }),
+        count: jest.fn().mockResolvedValue(1), // un autre enfant actif reste
+      },
+      user: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'parent-1' }]),
+        update: jest.fn(),
+      },
+    });
+
+    await service.remove('s1', 'school-1');
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('rejects deleting a student outside the current school', async () => {

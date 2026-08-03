@@ -57,3 +57,16 @@ export function useProvisionStudentAccount(studentId: string) {
     },
   });
 }
+
+/** Suppression douce — désactive aussi le compte ELEVE lié (et le compte PARENT si c'était son dernier enfant actif), côté backend. */
+export function useDeleteStudent(studentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(`/students/${studentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}

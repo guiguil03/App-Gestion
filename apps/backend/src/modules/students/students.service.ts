@@ -304,15 +304,33 @@ export class StudentsService {
    * fiche des listings/pointages sans perdre l'historique (présences,
    * absences, cartes déjà émises). Le compte ELEVE lié, s'il existe, est
    * désactivé au passage — sinon l'élève garderait un accès valide malgré
-   * la suppression de sa fiche.
+   * la suppression de sa fiche. Un compte PARENT dont c'était le dernier
+   * enfant actif est désactivé aussi (transaction interactive : le compte
+   * doit voir la fiche déjà `deletedAt` pour compter correctement les
+   * enfants restants).
    */
   async remove(studentId: string, schoolId: string) {
     await this.assertBelongsToSchool(studentId, schoolId);
-    const [student] = await this.prisma.$transaction([
-      this.prisma.student.update({ where: { id: studentId }, data: { deletedAt: new Date() } }),
-      this.prisma.user.updateMany({ where: { studentId, disabledAt: null }, data: { disabledAt: new Date() } }),
-    ]);
-    return student;
+
+    return this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.update({ where: { id: studentId }, data: { deletedAt: new Date() } });
+      await tx.user.updateMany({ where: { studentId, disabledAt: null }, data: { disabledAt: new Date() } });
+
+      const parents = await tx.user.findMany({
+        where: { role: 'PARENT', disabledAt: null, children: { some: { id: studentId } } },
+        select: { id: true },
+      });
+      for (const parent of parents) {
+        const remainingActiveChildren = await tx.student.count({
+          where: { parentUsers: { some: { id: parent.id } }, deletedAt: null },
+        });
+        if (remainingActiveChildren === 0) {
+          await tx.user.update({ where: { id: parent.id }, data: { disabledAt: new Date() } });
+        }
+      }
+
+      return student;
+    });
   }
 
   /**
