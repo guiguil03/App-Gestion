@@ -9,18 +9,24 @@ export type CardProps = ViewProps & {
 };
 
 /**
- * Surface élevée unique pour toute l'app — remplace les usages ad hoc de
- * `ThemedView bordered` (bordure fine) recopiés dans dashboard/eleves/
- * profil/carte avec des rayons différents à chaque fois. Ombre douce plutôt
- * que bordure, cohérent avec l'inspiration Material 3.
+ * Surface unique pour toute l'app — carte blanche à bordure fine + ombre
+ * discrète, comme les cartes du dashboard web (`bg-white border shadow-sm`),
+ * plutôt qu'une élévation seule façon Material 3.
  */
 export function Card({ style, elevation = 'level1', ...otherProps }: CardProps) {
-  return <ThemedView type="backgroundElement" style={[styles.base, Elevation[elevation], style]} {...otherProps} />;
+  return (
+    <ThemedView
+      type="backgroundElement"
+      bordered
+      style={[styles.base, Elevation[elevation], style]}
+      {...otherProps}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: Radius.large,
+    borderRadius: Radius.medium,
     padding: Spacing.three,
   },
 });

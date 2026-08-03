@@ -1,13 +1,16 @@
 // apps/mobile/src/app/(student)/carte.tsx
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import QRCodeView from 'react-native-qrcode-svg';
 
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import School from '@/db/models/School';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { Radius, Spacing } from '@/theme/theme';
@@ -15,12 +18,15 @@ import { resolveApiUrl } from '@/api/client';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useMyStudentCard } from '@/features/students/hooks/useStudentCard';
 import { useMyStudent } from '@/features/students/hooks/useStudents';
+import { buildCardHtml } from '@/services/cardHtml';
+import { buildQrCodeSvg } from '@/services/qrSvg';
 
 export default function StudentCarteScreen() {
   const database = useOptionalDatabase();
   const { data: student, isLoading: studentLoading, isError, error } = useMyStudent();
   const { data: cardResult, isLoading: cardLoading } = useMyStudentCard();
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (!database || !student?.schoolId) return;
@@ -32,24 +38,52 @@ export default function StudentCarteScreen() {
   }, [database, student?.schoolId]);
 
   if (studentLoading || cardLoading) {
-    return <ThemedView style={styles.container} />;
+    return <Screen />;
   }
 
   if (isError || !student) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState
           icon="alert-circle-outline"
           title="Impossible de charger ta fiche"
           description={isError ? getStudentErrorMessage(error) : undefined}
         />
-      </ThemedView>
+      </Screen>
     );
   }
 
+  async function handleExport() {
+    if (!student || !cardResult) return;
+    setIsExporting(true);
+    try {
+      const qrSvg = buildQrCodeSvg(cardResult.qrCode, 130);
+      const html = buildCardHtml({
+        fullName: `${student.lastName} ${student.firstName}`,
+        className: student.schoolClass.name,
+        promotion: student.schoolClass.promotion,
+        dateOfBirth: student.dateOfBirth,
+        sex: student.sex,
+        photoUrl: student.photoUrl ? resolveApiUrl(student.photoUrl) : null,
+        qrSvg,
+        cardId: cardResult.card.id,
+        issuedAt: cardResult.card.issuedAt,
+      });
+      const { uri } = await Print.printToFileAsync({ html, width: 243, height: 153 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+      }
+    } catch {
+      Alert.alert('Erreur', "Impossible de générer la carte à exporter.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Ma carte" />
+    <Screen style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <ScreenHeader title="Ma carte" />
 
       <Card style={styles.card} elevation="level2">
         {student.photoUrl && <Image source={{ uri: resolveApiUrl(student.photoUrl) }} style={styles.photo} />}
@@ -75,6 +109,16 @@ export default function StudentCarteScreen() {
         )}
       </Card>
 
+      {cardResult && (
+        <Button
+          label={isExporting ? 'Génération…' : 'Exporter ma carte (PDF)'}
+          icon="download-outline"
+          variant="tonal"
+          onPress={handleExport}
+          disabled={isExporting}
+        />
+      )}
+
       <Card style={styles.section}>
         <ThemedText type="smallBold" style={styles.sectionTitle}>
           Mes informations
@@ -84,21 +128,22 @@ export default function StudentCarteScreen() {
         <InfoRow label="Date de naissance" value={student.dateOfBirth} />
       </Card>
 
-      {student.parents[0] && (
-        <Card style={styles.section}>
-          <ThemedText type="smallBold" style={styles.sectionTitle}>
-            Parent / tuteur
-          </ThemedText>
-          <InfoRow label="Nom complet" value={student.parents[0].fullName} />
-          <InfoRow label="Lien de parenté" value={student.parents[0].relationship} />
-          <InfoRow label="Téléphone" value={student.parents[0].phoneNumber} />
-          {student.parents[0].secondaryPhoneNumber && (
-            <InfoRow label="Téléphone secondaire" value={student.parents[0].secondaryPhoneNumber} />
-          )}
-          {student.parents[0].address && <InfoRow label="Adresse" value={student.parents[0].address} />}
-        </Card>
-      )}
-    </ScrollView>
+        {student.parents[0] && (
+          <Card style={styles.section}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              Parent / tuteur
+            </ThemedText>
+            <InfoRow label="Nom complet" value={student.parents[0].fullName} />
+            <InfoRow label="Lien de parenté" value={student.parents[0].relationship} />
+            <InfoRow label="Téléphone" value={student.parents[0].phoneNumber} />
+            {student.parents[0].secondaryPhoneNumber && (
+              <InfoRow label="Téléphone secondaire" value={student.parents[0].secondaryPhoneNumber} />
+            )}
+            {student.parents[0].address && <InfoRow label="Adresse" value={student.parents[0].address} />}
+          </Card>
+        )}
+      </ScrollView>
+    </Screen>
   );
 }
 
@@ -114,10 +159,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    paddingHorizontal: 0,
+    gap: 0,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
     paddingBottom: Spacing.six - Spacing.two,
     gap: Spacing.three,
   },

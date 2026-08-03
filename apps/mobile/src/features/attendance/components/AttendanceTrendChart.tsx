@@ -1,9 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/theme/theme';
 import type { TrendPoint } from '@/features/attendance/hooks/useClassAttendanceTrend';
 
 const CHART_WIDTH = 280;
@@ -21,7 +22,7 @@ export function AttendanceTrendChart({ trend }: { trend: TrendPoint[] }) {
   const theme = useTheme();
 
   return (
-    <ThemedView type="backgroundElement" bordered style={styles.card}>
+    <Card style={styles.card}>
       <ThemedText type="smallBold">Tendance de présence (14 jours)</ThemedText>
 
       {trend.length < MIN_POINTS_TO_RENDER ? (
@@ -63,24 +64,22 @@ export function AttendanceTrendChart({ trend }: { trend: TrendPoint[] }) {
           </View>
         </>
       )}
-    </ThemedView>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
-    padding: 16,
-    gap: 8,
+    gap: Spacing.two,
   },
   svg: {
-    marginTop: 4,
+    marginTop: Spacing.one,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   emptyMessage: {
-    paddingVertical: 12,
+    paddingVertical: Spacing.two + 4,
   },
 });

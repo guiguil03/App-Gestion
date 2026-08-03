@@ -6,9 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/card';
 import { ChipSelector } from '@/components/chip-selector';
 import { EmptyState } from '@/components/empty-state';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/theme/theme';
@@ -25,30 +25,30 @@ export default function HistoriqueScreen() {
 
   if (!database) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState
           icon="server-outline"
           title="Base locale indisponible"
           description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go."
         />
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (classesLoading) {
-    return <ThemedView style={styles.container} />;
+    return <Screen />;
   }
 
   if (classes.length === 0) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState icon="school-outline" title="Aucune classe assignée" description="Contacte l'administration." />
-      </ThemedView>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen>
       <ScreenHeader title="Historique" />
 
       {classes.length > 1 && (
@@ -62,6 +62,7 @@ export default function HistoriqueScreen() {
       <FlatList
         data={days}
         keyExtractor={(day) => day.dateKey}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => {
           const isExpanded = expandedDayKey === item.dateKey;
@@ -107,16 +108,13 @@ export default function HistoriqueScreen() {
           </View>
         }
       />
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  list: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
   },
   listContent: {
     gap: Spacing.two,

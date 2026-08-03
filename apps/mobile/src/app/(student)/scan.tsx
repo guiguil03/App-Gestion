@@ -14,6 +14,7 @@ import TeacherSigningKey from '@/db/models/TeacherSigningKey';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
 import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOverlay';
+import { ScanSuccessModal, type ScanSuccessInfo } from '@/features/attendance/components/ScanSuccessModal';
 import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
 import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
@@ -29,6 +30,7 @@ export default function StudentScanScreen() {
   const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
+  const [successInfo, setSuccessInfo] = useState<ScanSuccessInfo | null>(null);
   const lastScan = useRef<{ sessionId: string; at: number } | null>(null);
 
   if (!database) {
@@ -142,7 +144,7 @@ export default function StudentScanScreen() {
         }),
       );
 
-      setFeedback({ status: 'ok', isLate });
+      setSuccessInfo({ isLate });
     } catch {
       setFeedback({ status: 'erreur' });
     }
@@ -176,6 +178,7 @@ export default function StudentScanScreen() {
 
       <SyncStatusBadge />
       <ScanFeedbackBanner feedback={feedback} />
+      <ScanSuccessModal info={successInfo} onDismiss={() => setSuccessInfo(null)} />
     </ThemedView>
   );
 }

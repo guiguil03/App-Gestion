@@ -4,9 +4,9 @@ import { FlatList, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/theme/theme';
@@ -26,23 +26,24 @@ export default function StudentHistoriqueScreen() {
 
   if (!database) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState
           icon="server-outline"
           title="Base locale indisponible"
           description="Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go."
         />
-      </ThemedView>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen>
       <ScreenHeader title="Historique" />
 
       <FlatList
         data={days}
         keyExtractor={(day) => day.dateKey}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Card style={styles.dayCard}>
@@ -66,16 +67,13 @@ export default function StudentHistoriqueScreen() {
           </View>
         }
       />
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  list: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
   },
   listContent: {
     gap: Spacing.two,

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Q } from '@nozbe/watermelondb';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { EmptyState } from '@/components/empty-state';
@@ -25,8 +26,14 @@ import { parseCardQrCode, verifyCardSignature } from '@/services/qrVerify';
 // on ignore les scans répétés de la même carte pendant ce délai.
 const RESCAN_COOLDOWN_MS = 4000;
 
+// Hauteur approx. du switch checkpoint (padding + contenu) — utilisée pour
+// placer le badge de sync juste en dessous, sans le faire dépendre du layout
+// réel (mesure DOM) pour un élément purement décoratif.
+const CHECKPOINT_SWITCH_HEIGHT = 52;
+
 export default function ScanScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const database = useOptionalDatabase();
   const recordAttendance = useRecordAttendance();
   const currentLocation = useCurrentLocation();
@@ -63,38 +70,43 @@ export default function ScanScreen() {
     }
     lastScan.current = { cardId, at: now };
 
-    // La clé publique de l'école n'est présente localement que pour l'école
-    // du compte connecté (le pull est scopé par tenant) : si payload.schoolId
-    // ne correspond pas à cette école, la recherche échoue et la carte est
-    // traitée comme non authentique.
-    const schools = await database.get<School>('schools').query(Q.where('id', parsed.payload.schoolId)).fetch();
-    const school = schools[0];
-    if (!school?.cardSigningPublicKey) {
-      setFeedback({ status: 'falsifiee' });
-      return;
-    }
-
-    const publicKeyBytes = new Uint8Array(Buffer.from(school.cardSigningPublicKey, 'hex'));
-    const isAuthentic = await verifyCardSignature(parsed, publicKeyBytes);
-    if (!isAuthentic) {
-      setFeedback({ status: 'falsifiee' });
-      return;
-    }
-
-    const isRevoked = (await database.get('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
-
-    if (isRevoked) {
-      setFeedback({ status: 'revoked' });
-      return;
-    }
-
     try {
+      // La clé publique de l'école n'est présente localement que pour l'école
+      // du compte connecté (le pull est scopé par tenant) : si payload.schoolId
+      // ne correspond pas à cette école, la recherche échoue et la carte est
+      // traitée comme non authentique.
+      const schools = await database.get<School>('schools').query(Q.where('id', parsed.payload.schoolId)).fetch();
+      const school = schools[0];
+      if (!school?.cardSigningPublicKey) {
+        setFeedback({ status: 'falsifiee' });
+        return;
+      }
+
+      const publicKeyBytes = new Uint8Array(Buffer.from(school.cardSigningPublicKey, 'hex'));
+      const isAuthentic = await verifyCardSignature(parsed, publicKeyBytes);
+      if (!isAuthentic) {
+        setFeedback({ status: 'falsifiee' });
+        return;
+      }
+
+      const isRevoked = (await database.get('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
+
+      if (isRevoked) {
+        setFeedback({ status: 'revoked' });
+        return;
+      }
+
       const record = await recordAttendance(studentId, checkpoint, currentLocation.current);
       setFeedback({ status: 'ok', isLate: record.isLate });
     } catch (error) {
       if (error instanceof GeofenceRejectionError) {
         setFeedback({ status: error.reason });
       } else {
+        // Toute exception ici (école introuvable, clé publique corrompue,
+        // signature malformée, DB indisponible...) doit rester visible à
+        // l'écran — un scan qui échoue silencieusement est indiscernable
+        // d'un scan qui n'a jamais été détecté par la caméra.
+        console.error('[scan] échec du traitement de la carte', error);
         setFeedback({ status: 'erreur' });
       }
     }
@@ -126,15 +138,18 @@ export default function ScanScreen() {
       />
       <ScanFrameOverlay instruction="Cadre la carte élève à scanner" />
 
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { top: insets.top + Spacing.two }]}>
         <ThemedView style={styles.checkpointSwitch}>
           {(['portail', 'classe'] as const).map((option) => (
             <Pressable
               key={option}
-              style={[styles.checkpointOption, checkpoint === option && { backgroundColor: theme.primary }]}
+              style={[styles.checkpointOption, checkpoint === option && { backgroundColor: theme.active }]}
               onPress={() => setCheckpoint(option)}
             >
-              <ThemedText type="smallBold" style={checkpoint === option ? styles.checkpointLabelActive : undefined}>
+              <ThemedText
+                type="smallBold"
+                style={checkpoint === option ? { color: theme.activeText } : undefined}
+              >
                 {option === 'portail' ? 'Portail' : 'Salle de classe'}
               </ThemedText>
             </Pressable>
@@ -142,7 +157,7 @@ export default function ScanScreen() {
         </ThemedView>
       </View>
 
-      <SyncStatusBadge />
+      <SyncStatusBadge topOffset={CHECKPOINT_SWITCH_HEIGHT + Spacing.two} />
       <ScanFeedbackBanner feedback={feedback} />
     </ThemedView>
   );
@@ -157,7 +172,6 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: 'absolute',
-    top: 48,
     left: Spacing.four,
     right: Spacing.four,
     flexDirection: 'row',
@@ -177,8 +191,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two + 2,
     borderRadius: Radius.medium,
     alignItems: 'center',
-  },
-  checkpointLabelActive: {
-    color: '#FFFFFF',
   },
 });

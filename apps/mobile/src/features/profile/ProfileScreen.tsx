@@ -5,9 +5,9 @@ import { StyleSheet, View } from 'react-native';
 import { useLogout } from '@/api/hooks/useLogout';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import School from '@/db/models/School';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { Spacing } from '@/theme/theme';
@@ -51,7 +51,7 @@ export function ProfileScreen() {
   }, [database]);
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen style={styles.container}>
       <ScreenHeader title="Profil" />
 
       <Card style={styles.card}>
@@ -61,7 +61,7 @@ export function ProfileScreen() {
       </Card>
 
       <Button label="Déconnexion" variant="danger" icon="log-out-outline" onPress={logout} />
-    </ThemedView>
+    </Screen>
   );
 }
 
@@ -78,9 +78,6 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
     gap: Spacing.four,
   },
   card: {

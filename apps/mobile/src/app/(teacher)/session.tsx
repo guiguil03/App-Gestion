@@ -5,8 +5,8 @@ import { router } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Button } from '@/components/button';
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import AttendanceSession from '@/db/models/AttendanceSession';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
@@ -106,30 +106,30 @@ export default function SessionScreen() {
 
   if (!database) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen style={styles.container}>
         <ThemedText style={styles.message}>
           Cet écran nécessite la base locale WatermelonDB, indisponible dans Expo Go.
         </ThemedText>
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (!classId) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen style={styles.container}>
         <ThemedText style={styles.message}>Aucune classe sélectionnée.</ThemedText>
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (error) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen style={styles.container}>
         <ThemedText style={[styles.message, { color: theme.danger }]}>{error}</ThemedText>
         <ThemedText type="linkPrimary" onPress={() => router.back()}>
           Retour
         </ThemedText>
-      </ThemedView>
+      </Screen>
     );
   }
 
@@ -137,7 +137,7 @@ export default function SessionScreen() {
   const seconds = String(Math.floor((remainingMs % 60_000) / 1000)).padStart(2, '0');
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen style={styles.container}>
       <ThemedText type="title">Session en cours</ThemedText>
       <ThemedText themeColor="textSecondary">
         Les élèves scannent ce QR pour valider leur présence — expire dans {minutes}:{seconds}
@@ -154,17 +154,13 @@ export default function SessionScreen() {
       <View style={styles.closeButtonWrapper}>
         <Button label="Fermer la session" variant="danger" onPress={closeSession} />
       </View>
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.five,
     alignItems: 'center',
-    gap: Spacing.three,
   },
   message: {
     textAlign: 'center',

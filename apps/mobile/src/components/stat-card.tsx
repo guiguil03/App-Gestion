@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Spacing } from '@/theme/theme';
+import { Radius, Spacing, withOpacity } from '@/theme/theme';
 
 export type StatCardProps = {
   label: string;
@@ -13,14 +13,14 @@ export type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-/** Tuile statistique (icône + valeur + libellé) — généralisée depuis `SummaryStat` du dashboard enseignant. */
+/** Tuile statistique (icône + valeur + libellé), calquée sur `KpiCard` du dashboard : icône teintée, pas de fond plein coloré. */
 export function StatCard({ label, value, color, icon }: StatCardProps) {
   return (
     <Card style={styles.card}>
-      <ThemedView style={[styles.icon, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={16} color="#ffffff" />
+      <ThemedView style={[styles.icon, { backgroundColor: withOpacity(color, '1A') }]}>
+        <Ionicons name={icon} size={16} color={color} />
       </ThemedView>
-      <ThemedText type="title" style={[styles.value, { color }]}>
+      <ThemedText type="title" style={styles.value}>
         {value}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   icon: {
     width: 28,
     height: 28,
-    borderRadius: Radius.full,
+    borderRadius: Radius.small,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.one,

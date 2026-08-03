@@ -8,8 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '@/components/back-button';
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { Radius, Spacing } from '@/theme/theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
@@ -65,23 +65,23 @@ export default function EleveDetailScreen() {
 
   if (isError) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen style={styles.container}>
         <BackButton />
         <EmptyState icon="alert-circle-outline" title="Erreur" description={getStudentErrorMessage(error)} />
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (isLoading || !student) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen style={styles.container}>
         <BackButton />
-      </ThemedView>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen style={styles.container}>
       <BackButton />
       <View style={styles.header}>
         <ThemedText type="title">
@@ -140,7 +140,7 @@ export default function EleveDetailScreen() {
         onSubmit={handleSubmit}
         isSubmitting={isUpdating}
       />
-    </ThemedView>
+    </Screen>
   );
 }
 
@@ -170,8 +170,7 @@ function ActionButton({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingTop: Spacing.four,
+    paddingHorizontal: 0,
   },
   header: {
     paddingHorizontal: Spacing.four,

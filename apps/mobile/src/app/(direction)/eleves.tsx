@@ -8,8 +8,8 @@ import { Avatar } from '@/components/avatar';
 import { ChipSelector } from '@/components/chip-selector';
 import { EmptyState } from '@/components/empty-state';
 import { ListRow } from '@/components/list-row';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
-import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { Radius, Spacing } from '@/theme/theme';
 import { resolveApiUrl } from '@/api/client';
@@ -35,29 +35,29 @@ export default function ElevesScreen() {
   const { data: students, isLoading: studentsLoading } = useStudents(selectedClassId);
 
   if (classesLoading) {
-    return <ThemedView style={styles.container} />;
+    return <Screen />;
   }
 
   if (classes.length === 0) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState icon="school-outline" title="Aucune classe" description="Aucune classe dans cette école." />
-      </ThemedView>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen>
       <ScreenHeader
         title="Élèves"
         action={
           <Pressable
-            style={[styles.addButton, { backgroundColor: theme.primary }]}
+            style={[styles.addButton, { backgroundColor: theme.active }]}
             onPress={() =>
               router.push({ pathname: '/(direction)/eleve-nouveau', params: { schoolClassId: selectedClassId ?? '' } })
             }
           >
-            <Ionicons name="add" size={22} color="#ffffff" />
+            <Ionicons name="add" size={22} color={theme.activeText} />
           </Pressable>
         }
       />
@@ -70,12 +70,11 @@ export default function ElevesScreen() {
         />
       )}
 
-      {studentsLoading ? (
-        <ThemedView style={styles.container} />
-      ) : (
+      {!studentsLoading && (
         <FlatList
           data={students ?? []}
           keyExtractor={(student) => student.id}
+          style={styles.list}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
             <ListRow
@@ -99,16 +98,13 @@ export default function ElevesScreen() {
           }
         />
       )}
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  list: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
   },
   addButton: {
     width: 36,

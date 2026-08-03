@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 import { ChipSelector } from '@/components/chip-selector';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/theme/theme';
 import { useSchoolClasses } from '@/features/classes/hooks/useSchoolClasses';
 import type { StudentInput } from '@/features/students/types';
 
@@ -31,7 +33,6 @@ export function StudentForm({
   onSubmit: (values: StudentFormValues) => void;
   isSubmitting: boolean;
 }) {
-  const theme = useTheme();
   const { classes } = useSchoolClasses();
   const [values, setValues] = useState<StudentFormValues>({
     ...EMPTY_VALUES,
@@ -146,29 +147,19 @@ export function StudentForm({
         />
       </Section>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.submitButton,
-          { backgroundColor: theme.primary },
-          (!canSubmit || pressed) && styles.submitButtonDisabled,
-        ]}
-        disabled={!canSubmit}
-        onPress={handleSubmit}
-      >
-        <ThemedText style={styles.submitLabel}>{submitLabel}</ThemedText>
-      </Pressable>
+      <Button label={submitLabel} onPress={handleSubmit} disabled={!canSubmit} loading={isSubmitting} />
     </ScrollView>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <ThemedView type="backgroundElement" bordered style={styles.section}>
+    <Card style={styles.section}>
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         {title}
       </ThemedText>
       {children}
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -192,10 +183,7 @@ function Field({
         {label}
       </ThemedText>
       <TextInput
-        style={[
-          styles.input,
-          { borderColor: theme.backgroundSelected, backgroundColor: theme.background, color: theme.text },
-        ]}
+        style={[styles.input, { borderColor: theme.border, backgroundColor: theme.background, color: theme.text }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -208,43 +196,28 @@ function Field({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    gap: 16,
-    paddingBottom: 48,
+    padding: Spacing.four,
+    gap: Spacing.three,
+    paddingBottom: Spacing.six - Spacing.two,
   },
   section: {
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
+    gap: Spacing.two + 4,
   },
   sectionTitle: {
-    marginBottom: 2,
+    marginBottom: Spacing.half,
   },
   field: {
-    gap: 6,
+    gap: Spacing.one + 2,
   },
   label: {
-    marginLeft: 2,
-    marginTop: 4,
+    marginLeft: Spacing.half,
+    marginTop: Spacing.one,
   },
   input: {
     borderWidth: 1.5,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: Radius.small + 2,
+    paddingHorizontal: Spacing.three - 4,
+    paddingVertical: Spacing.two + 2,
     fontSize: 15,
-  },
-  submitButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

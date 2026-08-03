@@ -8,7 +8,7 @@ import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { Elevation, Radius, Spacing } from '@/theme/theme';
+import { Elevation, Radius, Spacing, withOpacity } from '@/theme/theme';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { initialRouteForRole } from '@/navigation/roleGuard';
 
@@ -50,7 +50,7 @@ export default function LoginScreen() {
         <ThemedText style={styles.appSubtitle}>Suivi de présence en temps réel</ThemedText>
       </View>
 
-      <ThemedView type="background" style={styles.card}>
+      <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.cardTitle}>
           Connexion
         </ThemedText>
@@ -63,8 +63,8 @@ export default function LoginScreen() {
             style={[
               styles.input,
               {
-                borderColor: usernameFocused ? theme.primary : theme.backgroundSelected,
-                backgroundColor: theme.backgroundElement,
+                borderColor: usernameFocused ? theme.active : theme.border,
+                backgroundColor: theme.background,
                 color: theme.text,
               },
             ]}
@@ -87,8 +87,8 @@ export default function LoginScreen() {
             style={[
               styles.input,
               {
-                borderColor: passwordFocused ? theme.primary : theme.backgroundSelected,
-                backgroundColor: theme.backgroundElement,
+                borderColor: passwordFocused ? theme.active : theme.border,
+                backgroundColor: theme.background,
                 color: theme.text,
               },
             ]}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
         </View>
 
         {error ? (
-          <View style={[styles.errorBox, { backgroundColor: `${theme.danger}1A` }]}>
+          <View style={[styles.errorBox, { backgroundColor: withOpacity(theme.danger, '1A') }]}>
             <Ionicons name="alert-circle" size={16} color={theme.danger} />
             <ThemedText style={[styles.error, { color: theme.danger }]}>{getLoginErrorMessage(error)}</ThemedText>
           </View>

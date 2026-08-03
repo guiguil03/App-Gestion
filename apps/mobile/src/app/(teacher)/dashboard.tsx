@@ -5,6 +5,7 @@ import { Badge } from '@/components/badge';
 import { ChipSelector } from '@/components/chip-selector';
 import { EmptyState } from '@/components/empty-state';
 import { ListRow } from '@/components/list-row';
+import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { StatCard } from '@/components/stat-card';
 import { ThemedText } from '@/components/themed-text';
@@ -33,30 +34,30 @@ export default function TeacherDashboardScreen() {
 
   if (!database) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState
           icon="server-outline"
           title="Base locale indisponible"
           description="Ce dashboard nécessite la base locale WatermelonDB, indisponible dans Expo Go. Lance l'app via un dev client (npx expo run:android ou EAS Build) pour tester cet écran."
         />
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (classesLoading) {
-    return <ThemedView style={styles.container} />;
+    return <Screen />;
   }
 
   if (classes.length === 0) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <EmptyState icon="school-outline" title="Aucune classe assignée" description="Contacte l'administration." />
-      </ThemedView>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen>
       <ScreenHeader title="Présence du jour" subtitle={TODAY_LABEL} />
 
       {classes.length > 1 && (
@@ -107,17 +108,11 @@ export default function TeacherDashboardScreen() {
           </View>
         }
       />
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
-  },
   summaryRow: {
     flexDirection: 'row',
     gap: Spacing.two + 2,

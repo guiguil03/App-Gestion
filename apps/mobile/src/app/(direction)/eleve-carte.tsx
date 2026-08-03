@@ -10,13 +10,14 @@ import { BackButton } from '@/components/back-button';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { resolveApiUrl } from '@/api/client';
 import { Radius, Spacing } from '@/theme/theme';
 import { getStudentErrorMessage } from '@/features/students/errorMessage';
 import { useStudent } from '@/features/students/hooks/useStudents';
 import { useIssueStudentCard, useStudentCard } from '@/features/students/hooks/useStudentCard';
+import { buildCardHtml } from '@/services/cardHtml';
 import { buildQrCodeSvg } from '@/services/qrSvg';
 
 export default function EleveCarteScreen() {
@@ -28,18 +29,18 @@ export default function EleveCarteScreen() {
 
   if (isError) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <BackButton />
         <EmptyState icon="alert-circle-outline" title="Erreur" description={getStudentErrorMessage(error)} />
-      </ThemedView>
+      </Screen>
     );
   }
 
   if (studentLoading || cardLoading || !student) {
     return (
-      <ThemedView style={styles.container}>
+      <Screen>
         <BackButton />
-      </ThemedView>
+      </Screen>
     );
   }
 
@@ -47,13 +48,17 @@ export default function EleveCarteScreen() {
     if (!student || !cardResult) return;
     setIsExporting(true);
     try {
-      const qrSvg = buildQrCodeSvg(cardResult.qrCode, 200);
+      const qrSvg = buildQrCodeSvg(cardResult.qrCode, 130);
       const html = buildCardHtml({
         fullName: `${student.lastName} ${student.firstName}`,
         className: student.schoolClass.name,
         promotion: student.schoolClass.promotion,
+        dateOfBirth: student.dateOfBirth,
+        sex: student.sex,
         photoUrl: student.photoUrl ? resolveApiUrl(student.photoUrl) : null,
         qrSvg,
+        cardId: cardResult.card.id,
+        issuedAt: cardResult.card.issuedAt,
       });
       const { uri } = await Print.printToFileAsync({ html, width: 243, height: 153 });
       if (await Sharing.isAvailableAsync()) {
@@ -73,7 +78,7 @@ export default function EleveCarteScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen>
       <BackButton />
       <ThemedText type="title">Carte élève</ThemedText>
 
@@ -117,63 +122,11 @@ export default function EleveCarteScreen() {
       ) : (
         <Button label={isIssuing ? 'Émission…' : 'Émettre la carte'} onPress={handleIssue} disabled={isIssuing} />
       )}
-    </ThemedView>
+    </Screen>
   );
 }
 
-function buildCardHtml({
-  fullName,
-  className,
-  promotion,
-  photoUrl,
-  qrSvg,
-}: {
-  fullName: string;
-  className: string;
-  promotion: string;
-  photoUrl: string | null;
-  qrSvg: string;
-}): string {
-  return `
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          @page { margin: 0; }
-          body { margin: 0; font-family: -apple-system, Helvetica, Arial, sans-serif; }
-          .card {
-            width: 243pt; height: 153pt; box-sizing: border-box; padding: 10pt;
-            display: flex; flex-direction: row; align-items: center; gap: 10pt;
-            border: 1pt solid #ccc; border-radius: 8pt;
-          }
-          .photo { width: 70pt; height: 90pt; object-fit: cover; border-radius: 4pt; background: #eee; }
-          .info { flex: 1; }
-          .name { font-size: 13pt; font-weight: 700; margin: 0 0 4pt; }
-          .meta { font-size: 9pt; color: #555; margin: 0; }
-          .qr { width: 90pt; height: 90pt; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          ${photoUrl ? `<img class="photo" src="${photoUrl}" />` : '<div class="photo"></div>'}
-          <div class="info">
-            <p class="name">${fullName}</p>
-            <p class="meta">${className} — ${promotion}</p>
-          </div>
-          <div class="qr">${qrSvg}</div>
-        </div>
-      </body>
-    </html>
-  `;
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
-  },
   cardWrapper: {
     alignItems: 'center',
   },

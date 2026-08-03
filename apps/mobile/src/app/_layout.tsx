@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient } from '@/api/client';
 import { database } from '@/db/database';
@@ -64,15 +65,17 @@ function RootLayout() {
   }, []);
 
   return (
-    <MaybeDatabaseProvider>
-      <QueryClientProvider client={queryClient}>
-        <SyncStatusProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? AppDarkTheme : AppLightTheme}>
-            <Stack screenOptions={{ headerShown: false }} />
-          </ThemeProvider>
-        </SyncStatusProvider>
-      </QueryClientProvider>
-    </MaybeDatabaseProvider>
+    <SafeAreaProvider>
+      <MaybeDatabaseProvider>
+        <QueryClientProvider client={queryClient}>
+          <SyncStatusProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? AppDarkTheme : AppLightTheme}>
+              <Stack screenOptions={{ headerShown: false }} />
+            </ThemeProvider>
+          </SyncStatusProvider>
+        </QueryClientProvider>
+      </MaybeDatabaseProvider>
+    </SafeAreaProvider>
   );
 }
 

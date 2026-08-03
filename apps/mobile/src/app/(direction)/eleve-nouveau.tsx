@@ -3,8 +3,8 @@ import { StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { BackButton } from '@/components/back-button';
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/theme/theme';
 import { StudentForm, type StudentFormValues } from '@/features/students/components/StudentForm';
 import { useCreateStudent } from '@/features/students/hooks/useStudentMutations';
@@ -22,7 +22,7 @@ export default function EleveNouveauScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <Screen style={styles.container}>
       <BackButton />
       <ThemedText type="title" style={styles.title}>
         Nouvel élève
@@ -33,14 +33,13 @@ export default function EleveNouveauScreen() {
         </ThemedText>
       ) : null}
       <StudentForm submitLabel="Créer l'élève" initialValues={{ schoolClassId }} onSubmit={handleSubmit} isSubmitting={isPending} />
-    </ThemedView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingTop: Spacing.four,
+    paddingHorizontal: 0,
   },
   title: {
     paddingHorizontal: Spacing.four,

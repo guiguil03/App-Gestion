@@ -24,14 +24,22 @@ export function Button({ label, variant = 'filled', icon, loading, disabled, ...
   const theme = useTheme();
   const isDisabled = disabled || loading;
 
+  // CTA principale en noir quasi pur (`theme.active`), comme les boutons
+  // primaires du dashboard — le vert (`theme.primary`) reste réservé à
+  // l'identité de marque et aux statuts, jamais utilisé comme couleur d'action.
   const variantStyle = {
-    filled: { backgroundColor: theme.primary },
-    tonal: { backgroundColor: theme.backgroundElement },
-    outlined: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: theme.border },
+    filled: { backgroundColor: theme.active },
+    tonal: { backgroundColor: theme.backgroundSelected },
+    outlined: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.border },
     danger: { backgroundColor: theme.danger },
   }[variant];
 
-  const labelColor = variant === 'tonal' || variant === 'outlined' ? theme.primary : theme.primaryText;
+  const labelColor = {
+    filled: theme.activeText,
+    tonal: theme.text,
+    outlined: theme.text,
+    danger: theme.primaryText,
+  }[variant];
 
   return (
     <Pressable

@@ -5,44 +5,58 @@
 
 import { Platform } from 'react-native';
 
-// Palette validée (contraste WCAG + séparation daltonisme) via
-// dataviz/scripts/validate_palette.js — les 4 couleurs de statut passent tous
-// les checks en clair ET en sombre avec les mêmes valeurs hexadécimales,
-// donc pas de variantes distinctes par thème nécessaires pour primary/
-// success/warning/danger.
+// Palette alignée sur le dashboard web (apps/dashboard) : fond gris-bleu très
+// clair, cartes blanches à bordure fine (pas d'élévation "Material" seule),
+// neutres zinc, état actif/CTA en noir quasi pur — le vert (`primary`) reste
+// réservé à l'identité de marque et aux indicateurs de statut, jamais utilisé
+// comme couleur d'action comme dans la V1 du design system mobile.
+// Couleurs de statut (WCAG + daltonisme) validées via
+// dataviz/scripts/validate_palette.js — communes aux deux thèmes.
 export const Colors = {
   light: {
-    text: '#0F172A',
-    textSecondary: '#64748B',
-    background: '#FFFFFF',
-    backgroundElement: '#F1F5F9',
-    backgroundSelected: '#E2E8F0',
-    border: '#E2E8F0',
+    text: '#18181B',
+    textSecondary: '#71717A',
+    background: '#F8FAFC',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#E4E4E7',
+    border: '#E4E4E7',
     primary: '#059669',
     primaryText: '#FFFFFF',
-    success: '#16A34A',
+    success: '#059669',
     warning: '#D97706',
     danger: '#DC2626',
+    // Couleur d'action principale (CTA/état actif) — noir quasi pur, comme
+    // les boutons primaires et la nav active du dashboard.
+    active: '#18181B',
+    activeText: '#FFFFFF',
   },
   dark: {
-    text: '#F1F5F9',
-    textSecondary: '#94A3B8',
+    text: '#F4F4F5',
+    textSecondary: '#A1A1AA',
     // Gris anthracite plutôt que noir pur : le noir pur (#000) est un
     // anti-pattern de dark mode (HIG/Material recommandent une surface
     // sombre désaturée, jamais un simple inversion des couleurs claires).
-    background: '#111827',
-    backgroundElement: '#1F2937',
-    backgroundSelected: '#374151',
-    border: '#334155',
+    background: '#0B0B0E',
+    backgroundElement: '#18181B',
+    backgroundSelected: '#27272A',
+    border: '#27272A',
     primary: '#059669',
     primaryText: '#FFFFFF',
-    success: '#16A34A',
+    success: '#059669',
     warning: '#D97706',
     danger: '#DC2626',
+    // Inversé par rapport au clair : pastille quasi blanche sur fond sombre.
+    active: '#F4F4F5',
+    activeText: '#18181B',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+
+/** Ajoute une opacité (00–FF) à une couleur hex — utilisé pour les badges de statut en teinte pastel (fond clair + texte plein), comme les KPI/badges du dashboard. */
+export function withOpacity(hex: string, alphaHex: string): string {
+  return `${hex}${alphaHex}`;
+}
 
 export const Fonts = Platform.select({
   ios: {
@@ -79,8 +93,9 @@ export const Spacing = {
   six: 64,
 } as const;
 
-// Échelle de rayons partagée par tous les composants — remplace les valeurs
-// éparpillées (8/10/12/14/18/20/28px) qui variaient d'un écran à l'autre.
+// Échelle de rayons partagée par tous les composants — `medium` (12px) est le
+// rayon dominant, aligné sur le `rounded-xl` utilisé partout côté dashboard
+// (cartes, boutons, badges, nav).
 export const Radius = {
   small: 8,
   medium: 12,
@@ -89,16 +104,17 @@ export const Radius = {
   full: 999,
 } as const;
 
-// Élévation façon Material 3 : ombre douce partagée par les cartes et
-// éléments flottants (bannières, badges) — remplace les shadow* recopiés à
-// l'identique dans chaque écran.
+// `level1` = ombre "shadow-sm" du dashboard : très discrète, toujours
+// combinée à une bordure fine (`bordered`) plutôt qu'utilisée seule comme en
+// Material 3. `level2` reste plus marquée, réservée aux éléments qui flottent
+// par-dessus un contenu dynamique (bannières de scan, overlays caméra).
 export const Elevation = {
   level1: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   level2: {
     shadowColor: '#000',
