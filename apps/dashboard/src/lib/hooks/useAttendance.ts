@@ -1,6 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { attendanceApi } from '@/lib/api/attendance';
-import type { ManualAttendanceInput } from '@/types/attendance';
+import type { ManualAttendanceInput, PresenceListParams } from '@/types/attendance';
+
+/**
+ * Pointages bruts d'une journée — clé sous `dashboard` pour être rafraîchie
+ * automatiquement par `useDashboardStream` (invalidation SSE sur
+ * `attendance.recorded`), comme le reste des données de la page d'accueil.
+ */
+export function usePresenceList(params: PresenceListParams) {
+  return useQuery({
+    queryKey: ['dashboard', 'presences', params],
+    queryFn: () => attendanceApi.listForDay(params),
+    placeholderData: (previousData) => previousData,
+  });
+}
 
 export function useRecordManualAttendance() {
   const queryClient = useQueryClient();

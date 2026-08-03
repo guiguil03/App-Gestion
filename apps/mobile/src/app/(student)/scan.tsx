@@ -18,6 +18,7 @@ import { ScanSuccessModal, type ScanSuccessInfo } from '@/features/attendance/co
 import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
 import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
+import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 import { parseSessionQrCode, verifySessionSignature } from '@/services/sessionQr';
 
@@ -27,6 +28,7 @@ const RESCAN_COOLDOWN_MS = 4000;
 
 export default function StudentScanScreen() {
   const database = useOptionalDatabase();
+  const { triggerSync } = useSyncStatus();
   const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
@@ -143,6 +145,7 @@ export default function StudentScanScreen() {
           }
         }),
       );
+      triggerSync();
 
       setSuccessInfo({ isLate });
     } catch {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, ClipboardX, CreditCard, FileDown, GraduationCap, LayoutDashboard, LogOut, ScrollText, School, Settings, UserCircle, Users } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, ClipboardX, CreditCard, FileDown, GraduationCap, LayoutDashboard, LogOut, ScrollText, School, Settings, UserCircle, Users } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { label: 'Cartes', href: '/dashboard/cartes', icon: CreditCard },
   { label: 'Classes', href: '/dashboard/classes', icon: School },
   { label: 'Personnel', href: '/dashboard/personnel', icon: Users },
+  { label: 'Présences', href: '/dashboard/presences', icon: CalendarCheck },
   { label: 'Absences', href: '/dashboard/absences', icon: ClipboardX },
   { label: 'Rapports', href: '/dashboard/rapports', icon: FileDown },
   { label: 'Journal', href: '/dashboard/journal', icon: ScrollText },

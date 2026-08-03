@@ -19,6 +19,7 @@ import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOver
 import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
 import { GeofenceRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
+import RevokedCard from '@/db/models/RevokedCard';
 import School from '@/db/models/School';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
 import { parseCardQrCode, verifyCardSignature } from '@/services/qrVerify';
@@ -90,7 +91,8 @@ export default function ScanScreen() {
         return;
       }
 
-      const isRevoked = (await database.get('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
+      const isRevoked =
+        (await database.get<RevokedCard>('revoked_cards').query(Q.where('card_id', cardId)).fetchCount()) > 0;
 
       if (isRevoked) {
         setFeedback({ status: 'revoked' });

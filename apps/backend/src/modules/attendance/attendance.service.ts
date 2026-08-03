@@ -208,6 +208,60 @@ export class AttendanceService {
 
     return record;
   }
+
+  /**
+   * Liste des pointages bruts d'une journée — contrepartie de la page
+   * Absences (§3.6) : suivi au jour le jour de qui a effectivement pointé,
+   * plutôt qu'un statut agrégé par élève/période comme ReportsService. Une
+   * ligne par pointage (un élève peut apparaître deux fois : portail + classe).
+   */
+  async listForDay(schoolId: string, opts: { date: string; schoolClassId?: string; search?: string }) {
+    const startOfDay = new Date(`${opts.date}T00:00:00`);
+    const endOfDay = new Date(`${opts.date}T23:59:59.999`);
+    const term = opts.search?.trim();
+
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: {
+        student: {
+          schoolId,
+          schoolClassId: opts.schoolClassId,
+          deletedAt: null,
+          ...(term
+            ? {
+                OR: [
+                  { lastName: { contains: term, mode: 'insensitive' as const } },
+                  { firstName: { contains: term, mode: 'insensitive' as const } },
+                  { middleName: { contains: term, mode: 'insensitive' as const } },
+                ],
+              }
+            : {}),
+        },
+        recordedAt: { gte: startOfDay, lte: endOfDay },
+      },
+      include: { student: { include: { schoolClass: true } } },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    return records.map((record) => ({
+      id: record.id,
+      student: {
+        id: record.student.id,
+        lastName: record.student.lastName,
+        middleName: record.student.middleName,
+        firstName: record.student.firstName,
+        schoolClass: {
+          id: record.student.schoolClass.id,
+          name: record.student.schoolClass.name,
+          promotion: record.student.schoolClass.promotion,
+        },
+      },
+      checkpoint: record.checkpoint,
+      direction: record.direction,
+      recordedAt: record.recordedAt.toISOString(),
+      isLate: record.isLate,
+      isManual: record.isManual,
+    }));
+  }
 }
 
 function toHHmm(date: Date): string {

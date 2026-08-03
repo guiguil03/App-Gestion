@@ -6,6 +6,7 @@ import Student from '@/db/models/Student';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { isRecordLate } from '@/features/attendance/lateDetection';
 import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
+import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 
 export type GeofenceRejectionReason = 'hors_perimetre' | 'hors_horaire' | 'position_indisponible';
 
@@ -17,9 +18,19 @@ export class GeofenceRejectionError extends Error {
 
 type Coords = { latitude: number; longitude: number } | null;
 
-/** Persists a pointage locally; the sync engine pushes it to the backend later. */
+/**
+ * Persists a pointage locally, then kicks off a sync push right away — the
+ * automatic triggers (login, network reconnect, app foreground) leave a gap
+ * where a teacher who stays on the scan screen for the whole arrival window
+ * (never backgrounding the app, never losing network) would have every
+ * pointage sit unsynced until one of those triggers happens to fire, even
+ * though the dashboard is meant to update live. Best-effort/non-blocking:
+ * `triggerSync` already no-ops if a sync is in flight or the device is
+ * offline, so calling it after every scan is safe.
+ */
 export function useRecordAttendance() {
   const database = useOptionalDatabase();
+  const { triggerSync } = useSyncStatus();
 
   return useCallback(
     async (
@@ -60,7 +71,7 @@ export function useRecordAttendance() {
         recordedAt,
       );
 
-      return database.write(() =>
+      const record = await database.write(() =>
         database.get<AttendanceRecord>('attendance_records').create((record) => {
           record.studentId = studentId;
           record.checkpoint = checkpoint;
@@ -74,7 +85,9 @@ export function useRecordAttendance() {
           }
         }),
       );
+      triggerSync();
+      return record;
     },
-    [database],
+    [database, triggerSync],
   );
 }

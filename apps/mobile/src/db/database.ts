@@ -4,6 +4,7 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import AssignedClass from '@/db/models/AssignedClass';
 import AttendanceRecord from '@/db/models/AttendanceRecord';
 import AttendanceSession from '@/db/models/AttendanceSession';
+import RevokedCard from '@/db/models/RevokedCard';
 import School from '@/db/models/School';
 import SchoolClass from '@/db/models/SchoolClass';
 import Student from '@/db/models/Student';
@@ -29,6 +30,7 @@ function createDatabase(): Database | null {
         SchoolClass,
         AssignedClass,
         TeacherSigningKey,
+        RevokedCard,
       ],
     });
   } catch {
