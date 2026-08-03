@@ -67,7 +67,12 @@
           "organization": "guigui-3o",
           "project": "presenceconnect"
         }
-      ]
+      ],
+      "expo-background-task",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
