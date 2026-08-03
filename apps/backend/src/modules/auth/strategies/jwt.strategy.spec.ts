@@ -10,6 +10,7 @@ function buildPayload(overrides: Partial<AuthenticatedUser> = {}): Authenticated
     role: 'DIRECTION',
     schoolId: 'school-1',
     studentId: null,
+    mustChangePassword: false,
     type: 'access',
     ...overrides,
   };

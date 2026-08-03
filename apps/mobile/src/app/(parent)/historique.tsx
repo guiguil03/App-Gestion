@@ -1,7 +1,11 @@
 // apps/mobile/src/app/(parent)/historique.tsx
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
+import { apiClient } from '@/api/client';
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ChipSelector } from '@/components/chip-selector';
 import { EmptyState } from '@/components/empty-state';
@@ -11,14 +15,25 @@ import { ThemedText } from '@/components/themed-text';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/theme/theme';
+import { dateKey } from '@/features/attendance/dateKey';
 import { useChildren } from '@/features/children/hooks/useChildren';
 import { useChildHistory } from '@/features/attendance/hooks/useChildHistory';
+import type { AttendanceHistoryEntry } from '@/features/reports/hooks/useReports';
+import { buildReportHtml } from '@/services/reportHtml';
+
+const REPORT_WINDOW_DAYS = 30;
+const HISTORY_STATUS_LABEL: Record<AttendanceHistoryEntry['status'], string> = {
+  PRESENT: 'Présent',
+  LATE: 'En retard',
+  ABSENT: 'Absent',
+};
 
 export default function ParentHistoriqueScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
   const children = useChildren();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (children.length === 0) {
@@ -32,6 +47,47 @@ export default function ParentHistoriqueScreen() {
   }, [children, selectedChildId]);
 
   const days = useChildHistory(selectedChildId);
+
+  async function handleExportReport() {
+    setIsExporting(true);
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - REPORT_WINDOW_DAYS);
+
+      const { data: entries } = await apiClient.get<AttendanceHistoryEntry[]>('/reports/my-children', {
+        params: { startDate: dateKey(startDate), endDate: dateKey(endDate) },
+      });
+
+      const html = buildReportHtml({
+        title: 'Rapport de présence',
+        subtitle: `Du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`,
+        columns: ['Date', 'Enfant', 'Classe', 'Statut', 'Détail'],
+        rows: entries.map((entry) => [
+          new Date(entry.date).toLocaleDateString('fr-FR'),
+          `${entry.student.firstName} ${entry.student.lastName}`,
+          entry.student.schoolClass.name,
+          HISTORY_STATUS_LABEL[entry.status],
+          entry.status === 'ABSENT'
+            ? entry.justified
+              ? `Justifiée${entry.justificationReason ? ` — ${entry.justificationReason}` : ''}`
+              : 'Non justifiée'
+            : entry.recordedAt
+              ? new Date(entry.recordedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+              : '—',
+        ]),
+      });
+
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+      }
+    } catch {
+      Alert.alert('Erreur', "Impossible de générer le rapport. Vérifie ta connexion et réessaie.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   if (!database) {
     return (
@@ -64,6 +120,14 @@ export default function ParentHistoriqueScreen() {
           onSelect={setSelectedChildId}
         />
       )}
+
+      <Button
+        label={isExporting ? 'Génération…' : 'Exporter le rapport (PDF, 30 derniers jours)'}
+        icon="download-outline"
+        variant="tonal"
+        onPress={handleExportReport}
+        disabled={isExporting}
+      />
 
       <FlatList
         data={days}

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -158,6 +159,16 @@ export default function ScanScreen() {
       </View>
 
       <SyncStatusBadge topOffset={CHECKPOINT_SWITCH_HEIGHT + Spacing.two} />
+
+      <View style={styles.noCardButton}>
+        <Button
+          label="Élève sans carte"
+          variant="tonal"
+          icon="person-add-outline"
+          onPress={() => router.push({ pathname: '/(teacher)/pointage-manuel', params: { checkpoint } })}
+        />
+      </View>
+
       <ScanFeedbackBanner feedback={feedback} />
     </ThemedView>
   );
@@ -191,5 +202,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two + 2,
     borderRadius: Radius.medium,
     alignItems: 'center',
+  },
+  // Au-dessus du bandeau de feedback (bottom: 40, ~56px de haut) — assez
+  // d'écart pour ne jamais se chevaucher, y compris avec le texte le plus long.
+  noCardButton: {
+    position: 'absolute',
+    bottom: 110,
+    left: Spacing.four,
+    right: Spacing.four,
   },
 });

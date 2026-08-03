@@ -26,6 +26,24 @@ export default function DirectionTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="absences"
+        options={{
+          title: 'Absences',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'clipboard' : 'clipboard-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="rapports"
+        options={{
+          title: 'Rapports',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profil"
         options={{
           title: 'Profil',

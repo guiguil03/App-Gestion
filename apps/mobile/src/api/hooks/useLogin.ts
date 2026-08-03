@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
 
 import { apiClient } from '@/api/client';
+import { registerForPushNotifications } from '@/services/pushNotifications';
 import { saveAuthTokens } from '@/services/secureStorage';
 
 export type UserRole = 'ADMIN' | 'DIRECTION' | 'ENSEIGNANT' | 'SURVEILLANT' | 'PARENT' | 'ELEVE';
@@ -17,6 +18,7 @@ export type LoginResponse = {
   role: UserRole;
   schoolId: string | null;
   studentId: string | null;
+  mustChangePassword: boolean;
 };
 
 async function login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -46,6 +48,9 @@ export function useLogin() {
     mutationFn: async (credentials: LoginCredentials) => {
       const response = await login(credentials);
       await saveAuthTokens(response.accessToken, response.refreshToken);
+      // Ne bloque jamais la connexion — best-effort (cf. commentaire dans
+      // pushNotifications.ts). Volontairement pas de `await` ici.
+      void registerForPushNotifications();
       return response;
     },
   });

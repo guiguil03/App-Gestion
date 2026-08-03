@@ -9,6 +9,9 @@ export type RawAttendanceRecord = {
   direction: 'entree' | 'sortie';
   recorded_at: number;
   is_late: boolean;
+  // Pointage déclaré manuellement par un ENSEIGNANT/SURVEILLANT (élève sans
+  // carte) plutôt que vérifié par scan — voir AttendanceService.recordFromSync.
+  is_manual?: boolean;
   // Renseigné uniquement pour un pointage auto-scanné par l'élève via un QR
   // de session (cf. RawAttendanceSessionCreate).
   session_id?: string | null;

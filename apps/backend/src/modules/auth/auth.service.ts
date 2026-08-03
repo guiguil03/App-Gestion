@@ -13,6 +13,7 @@ export type LoginResult = {
   role: Role;
   schoolId: string | null;
   studentId: string | null;
+  mustChangePassword: boolean;
 };
 
 type TokenSubject = Omit<AuthenticatedUser, 'type'>;
@@ -55,6 +56,7 @@ export class AuthService {
       role: user.role as Role,
       schoolId: user.schoolId,
       studentId: user.studentId,
+      mustChangePassword: user.mustChangePassword,
     });
   }
 
@@ -76,17 +78,49 @@ export class AuthService {
       role: payload.role,
       schoolId: payload.schoolId,
       studentId: payload.studentId,
+      mustChangePassword: payload.mustChangePassword,
     });
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  /**
+   * Change le mot de passe et réémet une paire de jetons à jour (plutôt que
+   * `void`) : c'est le seul moyen pour l'app mobile d'obtenir immédiatement
+   * un jeton avec `mustChangePassword: false` sans repasser par un login —
+   * indispensable pour l'écran de changement forcé (cf. StudentsService
+   * provisionAccount/provisionParentAccount), qui doit pouvoir quitter cet
+   * écran dans la foulée du changement.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
       throw new BadRequestException('Mot de passe actuel incorrect');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false },
+    });
+
+    return this.issueTokenPair({
+      userId: updated.id,
+      username: updated.username,
+      role: updated.role as Role,
+      schoolId: updated.schoolId,
+      studentId: updated.studentId,
+      mustChangePassword: updated.mustChangePassword,
+    });
+  }
+
+  /**
+   * Enregistre/remplace le jeton Expo Push de l'appareil courant — appelé
+   * par l'app mobile à chaque connexion réussie (le jeton peut changer d'une
+   * installation à l'autre). Un seul jeton par compte (cf. commentaire sur
+   * `User.expoPushToken`) : une connexion sur un nouvel appareil remplace
+   * simplement l'ancien, pas de gestion multi-appareils pour l'instant.
+   */
+  async registerPushToken(userId: string, expoPushToken: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { expoPushToken } });
   }
 
   private issueTokenPair(subject: TokenSubject): LoginResult {
@@ -96,6 +130,7 @@ export class AuthService {
       role: subject.role,
       schoolId: subject.schoolId,
       studentId: subject.studentId,
+      mustChangePassword: subject.mustChangePassword,
     };
   }
 }

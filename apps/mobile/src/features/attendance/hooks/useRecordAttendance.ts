@@ -22,7 +22,12 @@ export function useRecordAttendance() {
   const database = useOptionalDatabase();
 
   return useCallback(
-    async (studentId: string, checkpoint: Checkpoint, coords: Coords): Promise<AttendanceRecord> => {
+    async (
+      studentId: string,
+      checkpoint: Checkpoint,
+      coords: Coords,
+      options?: { isManual?: boolean },
+    ): Promise<AttendanceRecord> => {
       if (!database) {
         // Ne devrait jamais être appelé : scan.tsx n'affiche la caméra que
         // lorsque la base est disponible (voir useOptionalDatabase()).
@@ -62,6 +67,7 @@ export function useRecordAttendance() {
           record.direction = 'entree';
           record.recordedAt = recordedAt;
           record.isLate = isLate;
+          record.isManual = options?.isManual ?? false;
           if (coords) {
             record.latitude = coords.latitude;
             record.longitude = coords.longitude;

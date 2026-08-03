@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
-import { initialRouteForRole } from '@/navigation/roleGuard';
+import { resolveDestination, type AppDestination } from '@/navigation/roleGuard';
+import { registerForPushNotifications } from '@/services/pushNotifications';
 import { getDecodedAccessToken } from '@/services/secureStorage';
 
-type Destination = ReturnType<typeof initialRouteForRole> | '/(auth)/login';
+type Destination = AppDestination | '/(auth)/login';
 
 // Un token stocké peut être expiré : on redirige quand même vers le stack du
 // rôle, l'intercepteur 401 de apiClient (cf. api/client.ts) tentera un
@@ -19,7 +20,11 @@ export default function Index() {
     (async () => {
       const token = await getDecodedAccessToken();
       if (cancelled) return;
-      setDestination(token ? initialRouteForRole(token.role) : '/(auth)/login');
+      // Reprise d'une session déjà connectée (auto-login) : le jeton push a
+      // pu changer depuis la dernière ouverture (réinstall, nouvel
+      // appareil...) — best-effort, ne bloque pas la navigation.
+      if (token) void registerForPushNotifications();
+      setDestination(token ? resolveDestination(token) : '/(auth)/login');
     })();
     return () => {
       cancelled = true;

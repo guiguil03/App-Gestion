@@ -196,6 +196,12 @@ model AttendanceRecord {
   recordedAt DateTime            @map("recorded_at")
   isLate     Boolean             @map("is_late")
   receivedAt DateTime            @default(now()) @map("received_at")
+  // Pointage déclaré par un ENSEIGNANT/SURVEILLANT sans carte élève (carte
+  // perdue/oubliée) plutôt que vérifié par scan — contourne la vérification
+  // cryptographique de la carte mais pas le périmètre/la plage horaire (voir
+  // AttendanceService.recordFromSync). Qui a fait le pointage manuel est
+  // tracé via AuditService (action "attendance.manual_record"), pas ici.
+  isManual   Boolean             @default(false) @map("is_manual")
   // Non-null uniquement pour un pointage auto-scanné par l'élève via le QR
   // de session (cf. AttendanceSession) — null pour un scan de carte classique.
   sessionId  String?             @map("session_id")
@@ -275,6 +281,11 @@ model User {
   // Direction — rejeté par JwtAuthGuard dès la prochaine requête, pas
   // seulement au prochain login.
   disabledAt    DateTime? @map("disabled_at")
+  // Vrai pour un compte ELEVE/PARENT tout juste provisionné (mot de passe
+  // généré, affiché une seule fois à l'écran par la Direction) — l'app force
+  // un changement de mot de passe avant tout autre écran tant que ce flag
+  // est vrai. Jamais posé sur les comptes staff/ADMIN créés directement.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

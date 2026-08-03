@@ -87,8 +87,8 @@ export class StudentsService {
 
     await this.prisma.user.upsert({
       where: { studentId },
-      create: { username, passwordHash, role: 'ELEVE', schoolId, studentId },
-      update: { passwordHash },
+      create: { username, passwordHash, role: 'ELEVE', schoolId, studentId, mustChangePassword: true },
+      update: { passwordHash, mustChangePassword: true },
     });
 
     return { username, password };
@@ -157,7 +157,14 @@ export class StudentsService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const account = await this.prisma.user.create({
-      data: { username, passwordHash, role: 'PARENT', schoolId, children: { connect: { id: studentId } } },
+      data: {
+        username,
+        passwordHash,
+        role: 'PARENT',
+        schoolId,
+        children: { connect: { id: studentId } },
+        mustChangePassword: true,
+      },
     });
     await this.prisma.parentGuardian.update({
       where: { id: parentGuardianId },

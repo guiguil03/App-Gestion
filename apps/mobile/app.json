@@ -68,6 +68,12 @@
           "project": "presenceconnect"
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "color": "#059669"
+        }
+      ],
       "expo-background-task",
       "expo-image",
       "expo-sharing",

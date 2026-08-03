@@ -199,6 +199,7 @@ function toAttendanceRecordRow(record: {
   direction: string;
   recordedAt: Date;
   isLate: boolean;
+  isManual: boolean;
   sessionId: string | null;
 }) {
   return {
@@ -208,6 +209,7 @@ function toAttendanceRecordRow(record: {
     direction: record.direction.toLowerCase(),
     recorded_at: record.recordedAt.getTime(),
     is_late: record.isLate,
+    is_manual: record.isManual,
     session_id: record.sessionId,
   };
 }

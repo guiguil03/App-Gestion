@@ -10,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { Elevation, Radius, Spacing, withOpacity } from '@/theme/theme';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
-import { initialRouteForRole } from '@/navigation/roleGuard';
+import { resolveDestination } from '@/navigation/roleGuard';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -31,7 +31,7 @@ export default function LoginScreen() {
         onSuccess: (response) => {
           // Peuple un appareil neuf (élèves/classes) avant le premier scan.
           triggerSync();
-          router.replace(initialRouteForRole(response.role));
+          router.replace(resolveDestination(response));
         },
       },
     );

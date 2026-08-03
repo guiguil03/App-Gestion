@@ -6,6 +6,7 @@ import { AuthService } from '@/modules/auth/auth.service';
 import { ChangePasswordDto } from '@/modules/auth/dto/change-password.dto';
 import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { RefreshDto } from '@/modules/auth/dto/refresh.dto';
+import { RegisterPushTokenDto } from '@/modules/auth/dto/register-push-token.dto';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 
 @Controller('auth')
@@ -27,5 +28,12 @@ export class AuthController {
   @HttpCode(200)
   changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(user.userId, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('push-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  registerPushToken(@CurrentUser() user: AuthenticatedUser, @Body() dto: RegisterPushTokenDto) {
+    return this.authService.registerPushToken(user.userId, dto.expoPushToken);
   }
 }

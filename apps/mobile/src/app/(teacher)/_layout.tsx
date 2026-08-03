@@ -66,6 +66,9 @@ export default function TeacherTabsLayout() {
         {/* Ouverte depuis le bouton "Créer une session" de l'écran Classe —
             pas un onglet à part entière. */}
         <Tabs.Screen name="session" options={{ href: null, headerShown: false }} />
+        {/* Ouverte depuis le bouton "Élève sans carte" de l'écran Scan —
+            pas un onglet à part entière. */}
+        <Tabs.Screen name="pointage-manuel" options={{ href: null, headerShown: false }} />
       </Tabs>
     </SelectedClassProvider>
   );

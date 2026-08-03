@@ -76,5 +76,14 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 7,
+      steps: [
+        addColumns({
+          table: 'attendance_records',
+          columns: [{ name: 'is_manual', type: 'boolean' }],
+        }),
+      ],
+    },
   ],
 });

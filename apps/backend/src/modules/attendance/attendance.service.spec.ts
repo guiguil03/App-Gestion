@@ -17,8 +17,9 @@ function buildDeps() {
   } as any;
   const students = { assertBelongsToSchool: jest.fn().mockResolvedValue({ id: 'student-1', schoolClassId: 'class-1' }) } as any;
   const events = { emit: jest.fn() } as any;
-  const service = new AttendanceService(prisma, students, new LateDetectionService(), events);
-  return { service, prisma, students, events };
+  const audit = { log: jest.fn() } as any;
+  const service = new AttendanceService(prisma, students, new LateDetectionService(), events, audit);
+  return { service, prisma, students, events, audit };
 }
 
 describe('AttendanceService.recordFromSync — stale absence cleanup', () => {
@@ -178,6 +179,55 @@ describe('AttendanceService.recordFromSync — geofence and scan window', () => 
     );
 
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalled();
+  });
+});
+
+describe('AttendanceService.recordFromSync — pointage manuel (élève sans carte)', () => {
+  it('persists isManual and writes an audit log entry when the device reports a manual pointage', async () => {
+    const { service, prisma, audit } = buildDeps();
+
+    await service.recordFromSync(
+      { schoolId: 'school-1', userId: 'user-1', username: 'prof1', role: 'ENSEIGNANT' } as any,
+      {
+        id: 'raw-manual-1',
+        student_id: 'student-1',
+        checkpoint: 'portail',
+        direction: 'entree',
+        recorded_at: '2026-07-14T08:00:00',
+        is_manual: true,
+        session_id: undefined,
+      } as any,
+    );
+
+    expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ isManual: true }) }),
+    );
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'attendance.manual_record',
+        userId: 'user-1',
+        targetId: 'student-1',
+        metadata: expect.objectContaining({ source: 'mobile' }),
+      }),
+    );
+  });
+
+  it('does not write an audit log entry for a regular card scan', async () => {
+    const { service, audit } = buildDeps();
+
+    await service.recordFromSync(
+      { schoolId: 'school-1', userId: 'user-1', username: 'prof1', role: 'ENSEIGNANT' } as any,
+      {
+        id: 'raw-card-1',
+        student_id: 'student-1',
+        checkpoint: 'portail',
+        direction: 'entree',
+        recorded_at: '2026-07-14T08:00:00',
+        session_id: undefined,
+      } as any,
+    );
+
+    expect(audit.log).not.toHaveBeenCalled();
   });
 });
 

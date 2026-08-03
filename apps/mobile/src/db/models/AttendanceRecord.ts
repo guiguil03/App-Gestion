@@ -22,6 +22,10 @@ export default class AttendanceRecord extends Model {
   @text('direction') direction: AttendanceDirection;
   @date('recorded_at') recordedAt: Date;
   @field('is_late') isLate: boolean;
+  // Pointage déclaré par un ENSEIGNANT/SURVEILLANT sans carte élève (carte
+  // perdue/oubliée) plutôt que vérifié par scan — voir
+  // apps/mobile/src/app/(teacher)/pointage-manuel.tsx.
+  @field('is_manual') isManual: boolean;
   @date('synced_at') syncedAt?: Date;
   // Non-null uniquement pour un pointage auto-scanné par l'élève via un QR
   // de session — null pour un scan de carte classique.

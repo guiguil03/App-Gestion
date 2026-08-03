@@ -40,6 +40,7 @@ export type AccessTokenPayload = {
   role: 'ADMIN' | 'DIRECTION' | 'ENSEIGNANT' | 'SURVEILLANT' | 'PARENT' | 'ELEVE';
   schoolId: string | null;
   studentId: string | null;
+  mustChangePassword: boolean;
 };
 
 function base64UrlDecode(segment: string): string {
@@ -65,5 +66,6 @@ export async function getDecodedAccessToken(): Promise<AccessTokenPayload | null
     role: payload.role,
     schoolId: payload.schoolId ?? null,
     studentId: payload.studentId ?? null,
+    mustChangePassword: payload.mustChangePassword ?? false,
   };
 }

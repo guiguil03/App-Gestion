@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // backend (the sync protocol matches records by `id` in both directions),
 // so no separate `server_id` column is needed anywhere in this schema.
 export const schema = appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: 'schools',
@@ -75,6 +75,10 @@ export const schema = appSchema({
         { name: 'direction', type: 'string' }, // 'entree' | 'sortie'
         { name: 'recorded_at', type: 'number' },
         { name: 'is_late', type: 'boolean' },
+        // Pointage déclaré par un ENSEIGNANT/SURVEILLANT sans carte élève
+        // (carte perdue/oubliée) plutôt que vérifié par scan — voir
+        // apps/mobile/src/app/(teacher)/pointage-manuel.tsx.
+        { name: 'is_manual', type: 'boolean' },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'session_id', type: 'string', isOptional: true, isIndexed: true },
         // Position GPS captée au moment du scan — renseignée uniquement si

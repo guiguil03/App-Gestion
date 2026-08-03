@@ -7,6 +7,7 @@ import * as Sentry from '@sentry/nestjs';
 
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
+import { AuditService } from '@/modules/audit/audit.service';
 import { dateKey } from '@/modules/absences/date-key';
 import {
   ATTENDANCE_RECORDED_EVENT,
@@ -38,6 +39,7 @@ export class AttendanceService {
     private readonly students: StudentsService,
     private readonly lateDetection: LateDetectionService,
     private readonly events: EventEmitter2,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -108,6 +110,7 @@ export class AttendanceService {
           direction: toDirection(raw.direction),
           recordedAt,
           isLate,
+          isManual: raw.is_manual ?? false,
           sessionId: session?.id,
           latitude: raw.latitude ?? undefined,
           longitude: raw.longitude ?? undefined,
@@ -124,8 +127,25 @@ export class AttendanceService {
 
     this.logger.log(`Pointage ${record.id} enregistré pour l'élève ${student.id} (retard=${isLate})`);
     Sentry.metrics.count('attendance.recorded', 1, {
-      attributes: { source: 'sync', is_late: String(isLate) },
+      attributes: { source: raw.is_manual ? 'mobile_manual' : 'sync', is_late: String(isLate) },
     });
+
+    // Traçabilité de qui a fait un pointage manuel (élève sans carte) — la
+    // vérification cryptographique de la carte étant contournée, on garde au
+    // moins une trace de l'enseignant/surveillant à l'origine du pointage.
+    // Best-effort (voir AuditService) : ne doit jamais faire échouer le sync.
+    if (raw.is_manual) {
+      await this.audit.log({
+        schoolId: user.schoolId,
+        userId: user.userId,
+        username: user.username,
+        role: user.role,
+        action: 'attendance.manual_record',
+        targetType: 'student',
+        targetId: student.id,
+        metadata: { source: 'mobile', checkpoint: raw.checkpoint, isLate },
+      });
+    }
 
     // Un pointage PORTAIL/ENTREE (même tardif) annule une absence déjà
     // marquée par AbsenceDetectionJob pour ce jour — un retard n'est pas une

@@ -16,6 +16,7 @@ describe('TenantContext.schoolId', () => {
       role: 'DIRECTION',
       schoolId: 'school-1',
       studentId: null,
+      mustChangePassword: false,
       type: 'access',
     });
 
@@ -24,7 +25,15 @@ describe('TenantContext.schoolId', () => {
 
   it('reads the school from the x-school-id header for an ADMIN account', () => {
     const context = buildContext(
-      { userId: 'u1', username: 'admin1', role: 'ADMIN', schoolId: null, studentId: null, type: 'access' },
+      {
+        userId: 'u1',
+        username: 'admin1',
+        role: 'ADMIN',
+        schoolId: null,
+        studentId: null,
+        mustChangePassword: false,
+        type: 'access',
+      },
       { 'x-school-id': 'school-42' },
     );
 
@@ -38,6 +47,7 @@ describe('TenantContext.schoolId', () => {
       role: 'ADMIN',
       schoolId: null,
       studentId: null,
+      mustChangePassword: false,
       type: 'access',
     });
 

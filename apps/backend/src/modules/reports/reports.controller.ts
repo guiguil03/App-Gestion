@@ -54,4 +54,16 @@ export class ReportsController {
       endDate,
     });
   }
+
+  @Get('my-children')
+  @Roles('PARENT')
+  myChildrenHistory(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
+    if (!DATE_PATTERN.test(startDate) || !DATE_PATTERN.test(endDate)) {
+      throw new BadRequestException('startDate et endDate sont requis au format YYYY-MM-DD');
+    }
+    return this.reportsService.myChildrenHistory(this.tenant.schoolId, this.tenant.user.userId, {
+      startDate,
+      endDate,
+    });
+  }
 }

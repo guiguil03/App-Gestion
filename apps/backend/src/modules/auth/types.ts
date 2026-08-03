@@ -13,5 +13,9 @@ export type AuthenticatedUser = {
   // Renseigné uniquement pour un compte ELEVE — permet à l'app mobile de
   // savoir "qui" elle est sans requête supplémentaire.
   studentId: string | null;
+  // Compte ELEVE/PARENT provisionné avec un mot de passe généré, pas encore
+  // changé — l'app mobile doit forcer l'écran de changement avant tout
+  // autre écran tant que c'est vrai (cf. User.mustChangePassword).
+  mustChangePassword: boolean;
   type: TokenType;
 };

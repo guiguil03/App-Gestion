@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 
 import { apiClient } from '@/api/client';
+import { readCache, writeCache } from '@/services/offlineCache';
+
+const MY_CARD_CACHE_KEY = 'students.card.me';
 
 export type StudentCard = {
   card: { id: string; studentId: string; issuedAt: string; revoked: boolean };
@@ -27,12 +30,18 @@ export function useStudentCard(studentId: string | null) {
   });
 }
 
+// Comme `fetchMyStudent` (useStudents.ts) : la carte doit rester affichable
+// hors ligne. Un 404 est un état légitime ("pas encore de carte émise", pas
+// un problème réseau) — seule une vraie panne réseau retente le cache local.
 async function fetchMyCard(): Promise<StudentCard | null> {
   try {
     const { data } = await apiClient.get<StudentCard>('/cards/me');
+    void writeCache(MY_CARD_CACHE_KEY, data);
     return data;
   } catch (error) {
     if (isAxiosError(error) && error.response?.status === 404) return null;
+    const cached = await readCache<StudentCard>(MY_CARD_CACHE_KEY);
+    if (cached) return cached;
     throw error;
   }
 }
