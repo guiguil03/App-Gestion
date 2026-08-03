@@ -122,6 +122,15 @@ export default function DashboardOverviewPage() {
               ))}
               {alerts.data?.repeatedLateness.length === 0 && <p className="text-sm text-zinc-400">Aucun.</p>}
             </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500 mb-1">Absences consécutives</p>
+              {(alerts.data?.consecutiveAbsences ?? []).slice(0, 5).map((s) => (
+                <p key={s.studentId} className="text-sm text-zinc-700">
+                  {s.studentName} ({s.schoolClassName}) — {s.consecutiveAbsences} jours d&apos;affilée
+                </p>
+              ))}
+              {alerts.data?.consecutiveAbsences.length === 0 && <p className="text-sm text-zinc-400">Aucune.</p>}
+            </div>
           </div>
         </div>
       </div>

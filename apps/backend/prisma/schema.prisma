@@ -41,16 +41,29 @@ enum AttendanceDirection {
 model School {
   id                         String    @id @default(uuid())
   name                       String
+  // Coordonnées et identité affichées sur les cartes élèves imprimées et
+  // dans les communications — purement informatif, aucune logique métier.
+  address                    String?
+  directorName               String?   @map("director_name")
+  logoUrl                    String?   @map("logo_url")
   attendanceReferenceTime    String    @map("attendance_reference_time") // "HH:mm"
   attendanceToleranceMinutes Int       @map("attendance_tolerance_minutes")
+  // Jours de la semaine où l'école est fermée (0=dimanche ... 6=samedi) —
+  // ni pointage attendu, ni absence détectée ces jours-là. Tableau vide =
+  // aucune restriction (école ouverte 7j/7, comportement historique).
+  closedWeekdays             Int[]     @default([]) @map("closed_weekdays")
+  // Nombre d'absences consécutives à partir duquel un élève remonte dans les
+  // alertes du dashboard (voir AbsencesService.listConsecutiveAbsenceAlerts).
+  // `null` = alertes désactivées.
+  consecutiveAbsenceAlertThreshold Int? @map("consecutive_absence_alert_threshold")
   // Paire Ed25519 utilisée pour signer les cartes QR de cette école : la clé
   // privée ne quitte jamais le backend, la clé publique est synchronisée vers
   // les appareils pour une vérification de signature 100% hors-ligne.
   cardSigningPrivateKey      String    @map("card_signing_private_key")
   cardSigningPublicKey       String    @map("card_signing_public_key")
   // Coordonnées GPS des 4 coins du périmètre de l'école, dans l'ordre
-  // (polygone simple) : [{ lat, lng }, ...]. `null` = pas encore configuré,
-  // aucune restriction de position appliquée au pointage.
+  // (polygone simple) : [{ lat, lng }, ...]. Non utilisé (fonctionnalité
+  // retirée) — conservé en base pour éviter une migration destructive.
   geofenceCorners            Json?     @map("geofence_corners")
   // Plage horaire ("HH:mm") où le pointage est autorisé. `null` = pas de
   // restriction. Indépendant de attendanceReferenceTime, qui ne sert qu'à
@@ -65,8 +78,26 @@ model School {
   students           Student[]
   users              User[]
   attendanceSessions AttendanceSession[]
+  closureDates       SchoolClosureDate[]
 
   @@map("schools")
+}
+
+// Dates ponctuelles de fermeture (vacances, jours fériés) — complète
+// School.closedWeekdays (fermetures récurrentes) pour couvrir aussi les
+// jours exceptionnels. Utilisé par AbsencesService.detectAbsences pour ne
+// pas marquer absent un jour où l'école n'attend aucun élève.
+model SchoolClosureDate {
+  id       String @id @default(uuid())
+  schoolId String @map("school_id")
+  date     String // "YYYY-MM-DD", voir date-key.ts
+  label    String?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, date])
+  @@index([schoolId])
+  @@map("school_closure_dates")
 }
 
 model SchoolClass {

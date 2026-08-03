@@ -14,6 +14,14 @@ function deadlineMinutes(referenceTime: string, toleranceMinutes: number): numbe
   return hours * 60 + minutes + toleranceMinutes;
 }
 
+export type ConsecutiveAbsenceAlert = {
+  studentId: string;
+  studentName: string;
+  schoolClassId: string;
+  schoolClassName: string;
+  consecutiveAbsences: number;
+};
+
 @Injectable()
 export class AbsencesService {
   private readonly logger = new Logger(AbsencesService.name);
@@ -35,8 +43,17 @@ export class AbsencesService {
     const schools = await this.prisma.school.findMany({ where: { deletedAt: null } });
 
     for (const school of schools) {
+      // École fermée ce jour (récurrent ou date ponctuelle) : aucun pointage
+      // n'est attendu, donc aucune absence à détecter.
+      if (school.closedWeekdays.includes(now.getDay())) continue;
+
       const deadline = deadlineMinutes(school.attendanceReferenceTime, school.attendanceToleranceMinutes);
       if (minutesSinceMidnight(now) < deadline) continue;
+
+      const closureDate = await this.prisma.schoolClosureDate.findUnique({
+        where: { schoolId_date: { schoolId: school.id, date } },
+      });
+      if (closureDate) continue;
 
       const startOfDay = new Date(now);
       startOfDay.setHours(0, 0, 0, 0);
@@ -69,6 +86,77 @@ export class AbsencesService {
         this.events.emit(ABSENCE_MARKED_EVENT, new AbsenceMarkedEvent(absence.id, student.id, school.id, date));
       }
     }
+  }
+
+  /**
+   * Élèves dont la série d'absences consécutives (en jours d'école, donc en
+   * ignorant weekends/fermetures) atteint le seuil configuré pour l'école —
+   * voir School.consecutiveAbsenceAlertThreshold. `null`/non configuré =
+   * fonctionnalité désactivée pour cette école, liste toujours vide.
+   */
+  async listConsecutiveAbsenceAlerts(schoolId: string, now: Date = new Date()): Promise<ConsecutiveAbsenceAlert[]> {
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+    const threshold = school?.consecutiveAbsenceAlertThreshold;
+    if (!school || !threshold) return [];
+
+    // Un jour d'école ne "compte" que si son délai de détection est déjà
+    // passé (sinon l'absence du jour même n'a pas encore été marquée, ce qui
+    // casserait à tort une série en cours).
+    const deadline = deadlineMinutes(school.attendanceReferenceTime, school.attendanceToleranceMinutes);
+    const todayAlreadyDetected = minutesSinceMidnight(now) >= deadline;
+
+    const closureDates = await this.prisma.schoolClosureDate.findMany({ where: { schoolId }, select: { date: true } });
+    const closureDateSet = new Set(closureDates.map((c) => c.date));
+
+    const LOOKBACK_CALENDAR_DAYS = 60;
+    const schoolDays: string[] = [];
+    const cursor = new Date(now);
+    if (!todayAlreadyDetected) cursor.setDate(cursor.getDate() - 1);
+    for (let i = 0; i < LOOKBACK_CALENDAR_DAYS; i++) {
+      if (!school.closedWeekdays.includes(cursor.getDay()) && !closureDateSet.has(dateKey(cursor))) {
+        schoolDays.push(dateKey(cursor));
+      }
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    if (schoolDays.length < threshold) return [];
+
+    const [students, absences] = await Promise.all([
+      this.prisma.student.findMany({ where: { schoolId, deletedAt: null }, include: { schoolClass: true } }),
+      this.prisma.absence.findMany({
+        where: { student: { schoolId }, date: { gte: schoolDays[schoolDays.length - 1] } },
+        select: { studentId: true, date: true },
+      }),
+    ]);
+
+    const absentDatesByStudent = new Map<string, Set<string>>();
+    for (const absence of absences) {
+      const dates = absentDatesByStudent.get(absence.studentId) ?? new Set<string>();
+      dates.add(absence.date);
+      absentDatesByStudent.set(absence.studentId, dates);
+    }
+
+    const alerts: ConsecutiveAbsenceAlert[] = [];
+    for (const student of students) {
+      const absentDates = absentDatesByStudent.get(student.id);
+      if (!absentDates) continue;
+
+      let streak = 0;
+      for (const day of schoolDays) {
+        if (!absentDates.has(day)) break;
+        streak++;
+      }
+      if (streak < threshold) continue;
+
+      alerts.push({
+        studentId: student.id,
+        studentName: [student.lastName, student.middleName, student.firstName].filter(Boolean).join(' '),
+        schoolClassId: student.schoolClass.id,
+        schoolClassName: student.schoolClass.name,
+        consecutiveAbsences: streak,
+      });
+    }
+
+    return alerts.sort((a, b) => b.consecutiveAbsences - a.consecutiveAbsences);
   }
 
   async list(schoolId: string, schoolClassId?: string, studentId?: string) {

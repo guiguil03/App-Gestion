@@ -10,6 +10,10 @@ function buildPrisma(overrides: Record<string, any> = {}) {
   } as any;
 }
 
+function buildAbsences(overrides: Record<string, any> = {}) {
+  return { listConsecutiveAbsenceAlerts: jest.fn().mockResolvedValue([]), ...overrides } as any;
+}
+
 describe('DashboardService.getOverview', () => {
   it('computes present/late/absent counts and a rounded rate', async () => {
     const prisma = buildPrisma({
@@ -22,7 +26,7 @@ describe('DashboardService.getOverview', () => {
       },
       absence: { count: jest.fn().mockResolvedValue(3) },
     });
-    const service = new DashboardService(prisma);
+    const service = new DashboardService(prisma, buildAbsences());
 
     const overview = await service.getOverview('school-1');
 
@@ -31,7 +35,7 @@ describe('DashboardService.getOverview', () => {
 
   it('returns a 0 rate when the school has no students (avoids division by zero)', async () => {
     const prisma = buildPrisma();
-    const service = new DashboardService(prisma);
+    const service = new DashboardService(prisma, buildAbsences());
 
     const overview = await service.getOverview('school-1');
 
@@ -53,12 +57,21 @@ describe('DashboardService.getAlerts', () => {
       },
       student: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([{ id: 's2', firstName: 'Paul', lastName: 'Mbeki' }]) },
     });
-    const service = new DashboardService(prisma);
+    const absences = buildAbsences({
+      listConsecutiveAbsenceAlerts: jest.fn().mockResolvedValue([
+        { studentId: 's3', studentName: 'Alice Lomboto', schoolClassId: 'class-1', schoolClassName: 'CP1', consecutiveAbsences: 4 },
+      ]),
+    });
+    const service = new DashboardService(prisma, absences);
 
     const alerts = await service.getAlerts('school-1');
 
     expect(alerts.unjustifiedAbsences).toHaveLength(1);
     expect(alerts.repeatedLateness).toEqual([{ studentId: 's2', firstName: 'Paul', lastName: 'Mbeki', lateCount: 4 }]);
+    expect(alerts.consecutiveAbsences).toEqual([
+      { studentId: 's3', studentName: 'Alice Lomboto', schoolClassId: 'class-1', schoolClassName: 'CP1', consecutiveAbsences: 4 },
+    ]);
+    expect(absences.listConsecutiveAbsenceAlerts).toHaveBeenCalledWith('school-1');
   });
 });
 
@@ -68,7 +81,7 @@ import type { MessageEvent } from '@nestjs/common';
 
 describe('DashboardService realtime stream', () => {
   it('emits attendance and absence events only to subscribers of the matching school', () => {
-    const service = new DashboardService(buildPrisma());
+    const service = new DashboardService(buildPrisma(), buildAbsences());
     const receivedForSchool1: MessageEvent[] = [];
     const receivedForSchool2: MessageEvent[] = [];
     service.streamFor('school-1').subscribe((event) => receivedForSchool1.push(event));

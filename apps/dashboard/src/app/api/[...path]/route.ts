@@ -29,8 +29,11 @@ async function proxy(req: NextRequest, path: string[]) {
   const adminSchoolId = req.cookies.get(AUTH_COOKIE.adminSchool)?.value;
   if (adminSchoolId) headers['x-school-id'] = adminSchoolId;
 
+  // arrayBuffer (pas text()) : un body texte encodé/décodé en UTF-8 round-trip
+  // sans perte, mais un upload binaire (ex. logo école, multipart/form-data)
+  // serait corrompu par un passage en string. Fonctionne pour les deux cas.
   const hasBody = !['GET', 'HEAD'].includes(req.method);
-  const body = hasBody ? await req.text() : undefined;
+  const body = hasBody ? await req.arrayBuffer() : undefined;
 
   const upstream = await fetch(target, { method: req.method, headers, body });
 

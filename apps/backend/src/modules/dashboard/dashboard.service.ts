@@ -5,6 +5,7 @@ import { Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 
 import { PrismaService } from '@/database/prisma.service';
+import { AbsencesService } from '@/modules/absences/absences.service';
 import { AbsenceMarkedEvent, ABSENCE_MARKED_EVENT } from '@/modules/absences/events/absence-marked.event';
 import { AttendanceRecordedEvent, ATTENDANCE_RECORDED_EVENT } from '@/modules/attendance/events/attendance-recorded.event';
 
@@ -19,7 +20,10 @@ function startOfToday(): Date {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly absences: AbsencesService,
+  ) {}
 
   private readonly stream$ = new Subject<{ schoolId: string; event: MessageEvent }>();
 
@@ -96,7 +100,7 @@ export class DashboardService {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - REPEATED_LATENESS_WINDOW_DAYS);
 
-    const [unjustifiedAbsences, lateGroups] = await Promise.all([
+    const [unjustifiedAbsences, lateGroups, consecutiveAbsences] = await Promise.all([
       this.prisma.absence.findMany({
         where: { student: { schoolId }, justified: false },
         include: { student: true },
@@ -109,6 +113,7 @@ export class DashboardService {
         _count: { studentId: true },
         having: { studentId: { _count: { gte: REPEATED_LATENESS_THRESHOLD } } },
       }),
+      this.absences.listConsecutiveAbsenceAlerts(schoolId),
     ]);
 
     const lateStudentIds = lateGroups.map((g) => g.studentId);
@@ -134,6 +139,7 @@ export class DashboardService {
           lateCount: group._count.studentId,
         };
       }),
+      consecutiveAbsences,
     };
   }
 
