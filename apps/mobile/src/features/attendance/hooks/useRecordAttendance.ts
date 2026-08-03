@@ -5,18 +5,16 @@ import School from '@/db/models/School';
 import Student from '@/db/models/Student';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { isRecordLate } from '@/features/attendance/lateDetection';
-import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
+import { isWithinScanWindow } from '@/features/attendance/geofence';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 
-export type GeofenceRejectionReason = 'hors_perimetre' | 'hors_horaire' | 'position_indisponible';
+export type ScanWindowRejectionReason = 'hors_horaire';
 
-export class GeofenceRejectionError extends Error {
-  constructor(public readonly reason: GeofenceRejectionReason) {
+export class ScanWindowRejectionError extends Error {
+  constructor(public readonly reason: ScanWindowRejectionReason) {
     super(reason);
   }
 }
-
-type Coords = { latitude: number; longitude: number } | null;
 
 /**
  * Persists a pointage locally, then kicks off a sync push right away — the
@@ -36,7 +34,6 @@ export function useRecordAttendance() {
     async (
       studentId: string,
       checkpoint: Checkpoint,
-      coords: Coords,
       options?: { isManual?: boolean },
     ): Promise<AttendanceRecord> => {
       if (!database) {
@@ -50,18 +47,11 @@ export function useRecordAttendance() {
 
       // Rejet côté appareil = feedback immédiat, y compris hors ligne (voir
       // AttendanceService.recordFromSync côté backend pour la revalidation
-      // en défense en profondeur au moment du sync). École sans périmètre/
-      // plage configurés : aucune restriction, comportement inchangé.
-      const geofenceCorners = school.geofenceCorners;
-      if (geofenceCorners) {
-        if (!coords) throw new GeofenceRejectionError('position_indisponible');
-        if (!isWithinGeofence(geofenceCorners, { lat: coords.latitude, lng: coords.longitude })) {
-          throw new GeofenceRejectionError('hors_perimetre');
-        }
-      }
+      // en défense en profondeur au moment du sync). École sans plage
+      // configurée : aucune restriction, comportement inchangé.
       if (school.scanWindowStart && school.scanWindowEnd) {
         if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, recordedAt)) {
-          throw new GeofenceRejectionError('hors_horaire');
+          throw new ScanWindowRejectionError('hors_horaire');
         }
       }
 
@@ -79,10 +69,6 @@ export function useRecordAttendance() {
           record.recordedAt = recordedAt;
           record.isLate = isLate;
           record.isManual = options?.isManual ?? false;
-          if (coords) {
-            record.latitude = coords.latitude;
-            record.longitude = coords.longitude;
-          }
         }),
       );
       triggerSync();

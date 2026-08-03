@@ -15,8 +15,7 @@ import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
 import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOverlay';
 import { ScanSuccessModal, type ScanSuccessInfo } from '@/features/attendance/components/ScanSuccessModal';
-import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
-import { isWithinGeofence, isWithinScanWindow } from '@/features/attendance/geofence';
+import { isWithinScanWindow } from '@/features/attendance/geofence';
 import { SyncStatusBadge } from '@/features/sync/components/SyncStatusBadge';
 import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { getDecodedAccessToken } from '@/services/secureStorage';
@@ -29,7 +28,6 @@ const RESCAN_COOLDOWN_MS = 4000;
 export default function StudentScanScreen() {
   const database = useOptionalDatabase();
   const { triggerSync } = useSyncStatus();
-  const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
   const [successInfo, setSuccessInfo] = useState<ScanSuccessInfo | null>(null);
@@ -108,20 +106,8 @@ export default function StudentScanScreen() {
       const school = await database.get<School>('schools').find(schoolId);
 
       // Même logique de rejet que useRecordAttendance.ts (utilisée par le
-      // flux enseignant/scan de carte) : école sans périmètre/plage
-      // configurés = aucune restriction, comportement inchangé.
-      const geofenceCorners = school.geofenceCorners;
-      const coords = currentLocation.current;
-      if (geofenceCorners) {
-        if (!coords) {
-          setFeedback({ status: 'position_indisponible' });
-          return;
-        }
-        if (!isWithinGeofence(geofenceCorners, { lat: coords.latitude, lng: coords.longitude })) {
-          setFeedback({ status: 'hors_perimetre' });
-          return;
-        }
-      }
+      // flux enseignant/scan de carte) : école sans plage configurée =
+      // aucune restriction, comportement inchangé.
       if (school.scanWindowStart && school.scanWindowEnd) {
         if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, new Date(now))) {
           setFeedback({ status: 'hors_horaire' });
@@ -139,10 +125,6 @@ export default function StudentScanScreen() {
           record.recordedAt = new Date(now);
           record.isLate = isLate;
           record.sessionId = sessionId;
-          if (coords) {
-            record.latitude = coords.latitude;
-            record.longitude = coords.longitude;
-          }
         }),
       );
       triggerSync();

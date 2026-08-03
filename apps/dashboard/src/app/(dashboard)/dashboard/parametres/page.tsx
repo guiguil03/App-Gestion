@@ -3,27 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAttendanceSettings, useUpdateAttendanceSettings } from '@/lib/hooks/useSettings';
-import type { GeoPoint } from '@/types/settings';
 
 type FormValues = {
-  corners: { lat: string; lng: string }[];
   scanWindowStart: string;
   scanWindowEnd: string;
   attendanceReferenceTime: string;
   attendanceToleranceMinutes: string;
 };
-
-const EMPTY_CORNERS = [
-  { lat: '', lng: '' },
-  { lat: '', lng: '' },
-  { lat: '', lng: '' },
-  { lat: '', lng: '' },
-];
-
-function toFormCorners(corners: GeoPoint[] | null): FormValues['corners'] {
-  if (!corners) return EMPTY_CORNERS;
-  return corners.map((c) => ({ lat: String(c.lat), lng: String(c.lng) }));
-}
 
 export default function ParametresPage() {
   const settings = useAttendanceSettings();
@@ -32,7 +18,6 @@ export default function ParametresPage() {
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
-      corners: EMPTY_CORNERS,
       scanWindowStart: '',
       scanWindowEnd: '',
       attendanceReferenceTime: '',
@@ -43,7 +28,6 @@ export default function ParametresPage() {
   useEffect(() => {
     if (!settings.data) return;
     reset({
-      corners: toFormCorners(settings.data.geofenceCorners),
       scanWindowStart: settings.data.scanWindowStart ?? '',
       scanWindowEnd: settings.data.scanWindowEnd ?? '',
       attendanceReferenceTime: settings.data.attendanceReferenceTime,
@@ -65,14 +49,6 @@ export default function ParametresPage() {
       return;
     }
 
-    const filledCorners = values.corners.filter((c) => c.lat.trim() !== '' && c.lng.trim() !== '');
-    if (filledCorners.length !== 0 && filledCorners.length !== 4) {
-      setError('Renseigne les 4 coins du périmètre, ou laisse-les tous vides pour désactiver la restriction.');
-      return;
-    }
-    const geofenceCorners: GeoPoint[] | null =
-      filledCorners.length === 4 ? filledCorners.map((c) => ({ lat: Number(c.lat), lng: Number(c.lng) })) : null;
-
     const hasStart = values.scanWindowStart.trim() !== '';
     const hasEnd = values.scanWindowEnd.trim() !== '';
     if (hasStart !== hasEnd) {
@@ -81,7 +57,6 @@ export default function ParametresPage() {
     }
 
     await updateSettings.mutateAsync({
-      geofenceCorners,
       scanWindowStart: hasStart ? values.scanWindowStart : null,
       scanWindowEnd: hasEnd ? values.scanWindowEnd : null,
       attendanceReferenceTime: values.attendanceReferenceTime,
@@ -121,39 +96,6 @@ export default function ParametresPage() {
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               />
             </div>
-          </div>
-        </div>
-
-        <div className="border-t border-zinc-100 pt-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Périmètre de l&apos;école</h2>
-          <p className="text-xs text-zinc-500 mt-1">
-            Coordonnées GPS des 4 coins du terrain de l&apos;école. Un pointage effectué en dehors de ce périmètre
-            n&apos;est pas enregistré. Laisse les 4 coins vides pour désactiver cette restriction.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex flex-wrap gap-2 items-end">
-                <span className="text-xs text-zinc-500 pb-2 w-14">Coin {i + 1}</span>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-500">Latitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    {...register(`corners.${i}.lat`)}
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-500">Longitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    {...register(`corners.${i}.lng`)}
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

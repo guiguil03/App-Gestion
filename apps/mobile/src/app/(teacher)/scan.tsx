@@ -16,8 +16,7 @@ import { Buffer } from 'buffer';
 
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
 import { ScanFrameOverlay } from '@/features/attendance/components/ScanFrameOverlay';
-import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
-import { GeofenceRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
+import { ScanWindowRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import type { Checkpoint } from '@/db/models/AttendanceRecord';
 import RevokedCard from '@/db/models/RevokedCard';
 import School from '@/db/models/School';
@@ -38,7 +37,6 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const database = useOptionalDatabase();
   const recordAttendance = useRecordAttendance();
-  const currentLocation = useCurrentLocation();
   const [permission, requestPermission] = useCameraPermissions();
   const [checkpoint, setCheckpoint] = useState<Checkpoint>('portail');
   const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
@@ -99,10 +97,10 @@ export default function ScanScreen() {
         return;
       }
 
-      const record = await recordAttendance(studentId, checkpoint, currentLocation.current);
+      const record = await recordAttendance(studentId, checkpoint);
       setFeedback({ status: 'ok', isLate: record.isLate });
     } catch (error) {
-      if (error instanceof GeofenceRejectionError) {
+      if (error instanceof ScanWindowRejectionError) {
         setFeedback({ status: error.reason });
       } else {
         // Toute exception ici (école introuvable, clé publique corrompue,

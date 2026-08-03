@@ -19,8 +19,7 @@ import AttendanceRecord, { type Checkpoint } from '@/db/models/AttendanceRecord'
 import Student from '@/db/models/Student';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { ScanFeedbackBanner, type ScanFeedback } from '@/features/attendance/components/ScanFeedbackBanner';
-import { useCurrentLocation } from '@/features/attendance/hooks/useCurrentLocation';
-import { GeofenceRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
+import { ScanWindowRejectionError, useRecordAttendance } from '@/features/attendance/hooks/useRecordAttendance';
 import { useClassRoster, type RosterStatus } from '@/features/classes/hooks/useClassRoster';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -45,7 +44,6 @@ export default function PointageManuelScreen() {
   const { classes, selectedClassId, setSelectedClassId } = useSelectedClass();
   const roster = useClassRoster(selectedClassId);
   const recordAttendance = useRecordAttendance();
-  const currentLocation = useCurrentLocation();
 
   const [searchMode, setSearchMode] = useState(!selectedClassId);
   const [query, setQuery] = useState('');
@@ -112,11 +110,11 @@ export default function PointageManuelScreen() {
     if (!selected) return;
     setPending(true);
     try {
-      const record = await recordAttendance(selected.studentId, checkpoint, currentLocation.current, { isManual: true });
+      const record = await recordAttendance(selected.studentId, checkpoint, { isManual: true });
       setFeedback({ status: 'ok', isLate: record.isLate });
       selectCandidate(null);
     } catch (error) {
-      if (error instanceof GeofenceRejectionError) {
+      if (error instanceof ScanWindowRejectionError) {
         setFeedback({ status: error.reason });
       } else {
         console.error('[pointage-manuel] échec de l’enregistrement', error);

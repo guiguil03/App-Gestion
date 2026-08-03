@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Checkpoint, AttendanceDirection, Prisma } from '@prisma/client';
+import type { AttendanceRecord } from '@prisma/client';
 import * as Sentry from '@sentry/nestjs';
 
 import { PrismaService } from '@/database/prisma.service';
@@ -13,7 +14,7 @@ import {
   ATTENDANCE_RECORDED_EVENT,
   AttendanceRecordedEvent,
 } from '@/modules/attendance/events/attendance-recorded.event';
-import { type GeoPoint, isWithinGeofence, isWithinScanWindow } from '@/modules/attendance/geofence';
+import { isWithinScanWindow } from '@/modules/attendance/geofence';
 import { LateDetectionService } from '@/modules/attendance/late-detection.service';
 import type { RawAttendanceRecord } from '@/modules/sync/dto/push-changes.dto';
 import { StudentsService } from '@/modules/students/students.service';
@@ -21,6 +22,10 @@ import { StudentsService } from '@/modules/students/students.service';
 // Code Prisma pour une violation de contrainte unique — ici (session_id,
 // student_id) : un rejeu de push (retry après coupure) ne doit pas planter.
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+
+export type AttendanceRejectionReason = 'scan_window';
+
+export type RecordFromSyncResult = AttendanceRecord | { rejected: true; id: string; reason: AttendanceRejectionReason };
 
 function toCheckpoint(value: string): Checkpoint {
   return value.toUpperCase() === 'CLASSE' ? Checkpoint.CLASSE : Checkpoint.PORTAIL;
@@ -49,7 +54,7 @@ export class AttendanceService {
    * Idempotent : un id déjà reçu n'écrase pas l'enregistrement existant, ce
    * qui permet au mobile de rejouer un push sans risque en cas de coupure.
    */
-  async recordFromSync(user: AuthenticatedUser, raw: RawAttendanceRecord) {
+  async recordFromSync(user: AuthenticatedUser, raw: RawAttendanceRecord): Promise<RecordFromSyncResult | null> {
     if (!user.schoolId) return null; // ADMIN/DIRECTION sans école ne poussent pas de pointages
 
     const student = await this.students.assertBelongsToSchool(raw.student_id, user.schoolId);
@@ -59,23 +64,14 @@ export class AttendanceService {
     // Défense en profondeur : la validation "vraie" a déjà eu lieu côté
     // appareil (feedback immédiat à l'enseignant/élève, y compris hors
     // ligne) — ceci ne fait que rejeter silencieusement un pointage qui
-    // l'aurait quand même franchie (client modifié, coordonnées absentes).
-    // Écoles sans périmètre/plage configurés (geofenceCorners/scanWindow*
-    // à null) : aucune restriction, comportement identique à avant.
-    if (school.geofenceCorners) {
-      const corners = school.geofenceCorners as unknown as GeoPoint[];
-      const hasCoords = typeof raw.latitude === 'number' && typeof raw.longitude === 'number';
-      if (!hasCoords || !isWithinGeofence(corners, { lat: raw.latitude as number, lng: raw.longitude as number })) {
-        this.logger.warn(`Pointage ${raw.id} rejeté : hors du périmètre de l'école ${school.id}`);
-        Sentry.metrics.count('attendance.rejected', 1, { attributes: { reason: 'geofence' } });
-        return null;
-      }
-    }
+    // l'aurait quand même franchie (client modifié). École sans plage
+    // configurée (scanWindow* à null) : aucune restriction, comportement
+    // identique à avant.
     if (school.scanWindowStart && school.scanWindowEnd) {
       if (!isWithinScanWindow(school.scanWindowStart, school.scanWindowEnd, recordedAt)) {
         this.logger.warn(`Pointage ${raw.id} rejeté : hors de la plage horaire de pointage de l'école ${school.id}`);
         Sentry.metrics.count('attendance.rejected', 1, { attributes: { reason: 'scan_window' } });
-        return null;
+        return { rejected: true, id: raw.id, reason: 'scan_window' };
       }
     }
 

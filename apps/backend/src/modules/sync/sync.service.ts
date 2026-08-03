@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import { AttendanceSessionsService } from '@/modules/attendance/attendance-sessions.service';
-import { AttendanceService } from '@/modules/attendance/attendance.service';
+import { AttendanceService, type AttendanceRejectionReason } from '@/modules/attendance/attendance.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import type { PushChangesBody } from '@/modules/sync/dto/push-changes.dto';
 
@@ -128,7 +128,19 @@ export class SyncService {
     };
   }
 
-  async push(user: AuthenticatedUser, changes: PushChangesBody['changes']): Promise<void> {
+  /**
+   * `recordFromSync` peut rejeter un pointage en défense en profondeur
+   * (hors plage horaire) sans lever d'exception (voir son
+   * commentaire) — sans remonter ces rejets ici, la requête répond 200 OK,
+   * l'appareil marque le pointage comme synchronisé, et l'enregistrement
+   * disparaît silencieusement sans jamais avoir existé en base. On les
+   * collecte donc pour que l'app mobile puisse prévenir l'utilisateur au
+   * lieu d'afficher à tort "synchronisé".
+   */
+  async push(
+    user: AuthenticatedUser,
+    changes: PushChangesBody['changes'],
+  ): Promise<{ rejectedAttendanceRecords: { id: string; reason: AttendanceRejectionReason }[] }> {
     // Les sessions doivent être créées avant les pointages qui les
     // référencent : un même cycle de push peut pousser les deux dans le même
     // aller, l'ordre importe donc (cas d'un appareil élève qui aurait aussi
@@ -143,10 +155,16 @@ export class SyncService {
       await this.attendanceSessions.closeFromSync(user, raw);
     }
 
+    const rejectedAttendanceRecords: { id: string; reason: AttendanceRejectionReason }[] = [];
     const created = changes.attendance_records?.created ?? [];
     for (const raw of created) {
-      await this.attendance.recordFromSync(user, raw);
+      const result = await this.attendance.recordFromSync(user, raw);
+      if (result && 'rejected' in result) {
+        rejectedAttendanceRecords.push({ id: result.id, reason: result.reason });
+      }
     }
+
+    return { rejectedAttendanceRecords };
   }
 }
 
@@ -156,7 +174,6 @@ function toSchoolRow(school: {
   attendanceReferenceTime: string;
   attendanceToleranceMinutes: number;
   cardSigningPublicKey: string;
-  geofenceCorners: unknown;
   scanWindowStart: string | null;
   scanWindowEnd: string | null;
 }) {
@@ -168,9 +185,6 @@ function toSchoolRow(school: {
     // Clé publique Ed25519 (hex) — la privée ne quitte jamais le backend.
     // Permet la vérification de signature de carte 100% offline côté mobile.
     card_signing_public_key: school.cardSigningPublicKey,
-    // WatermelonDB n'a pas de colonne JSON native : sérialisé en texte,
-    // reparsé côté mobile (voir apps/mobile/src/services/sync.ts).
-    geofence_corners: school.geofenceCorners ? JSON.stringify(school.geofenceCorners) : null,
     scan_window_start: school.scanWindowStart,
     scan_window_end: school.scanWindowEnd,
   };
