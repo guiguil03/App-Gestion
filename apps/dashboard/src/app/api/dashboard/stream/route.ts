@@ -2,6 +2,12 @@ import { NextRequest } from 'next/server';
 import { AUTH_COOKIE, getBackendUrl } from '@/lib/auth/session-cookies';
 
 export const dynamic = 'force-dynamic';
+// Requis pour un flux SSE de longue durée sur Vercel : le runtime Node.js
+// serverless par défaut tue la fonction après son timeout d'exécution (10-60s
+// selon le plan), ce qui coupe la connexion bien avant que le navigateur
+// n'ait de nouvel événement à recevoir — d'où le badge "Hors ligne" qui ne
+// repasse jamais à "Temps réel actif". Le runtime Edge n'a pas cette limite.
+export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
   const accessToken = req.cookies.get(AUTH_COOKIE.access)?.value;
