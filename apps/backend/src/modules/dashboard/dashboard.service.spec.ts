@@ -73,6 +73,24 @@ describe('DashboardService.getAlerts', () => {
     ]);
     expect(absences.listConsecutiveAbsenceAlerts).toHaveBeenCalledWith('school-1');
   });
+
+  it('scopes the repeated-lateness student lookup to the requested school', async () => {
+    const studentFindMany = jest.fn().mockResolvedValue([]);
+    const prisma = buildPrisma({
+      attendanceRecord: {
+        groupBy: jest.fn().mockResolvedValue([{ studentId: 's2', _count: { studentId: 4 } }]),
+        findMany: jest.fn(),
+      },
+      student: { count: jest.fn().mockResolvedValue(0), findMany: studentFindMany },
+    });
+    const service = new DashboardService(prisma, buildAbsences());
+
+    await service.getAlerts('school-1');
+
+    expect(studentFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ['s2'] }, schoolId: 'school-1' },
+    });
+  });
 });
 
 import { AbsenceMarkedEvent } from '@/modules/absences/events/absence-marked.event';

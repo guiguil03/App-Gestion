@@ -118,7 +118,7 @@ export class DashboardService {
 
     const lateStudentIds = lateGroups.map((g) => g.studentId);
     const lateStudents = lateStudentIds.length
-      ? await this.prisma.student.findMany({ where: { id: { in: lateStudentIds } } })
+      ? await this.prisma.student.findMany({ where: { id: { in: lateStudentIds }, schoolId } })
       : [];
     const lateStudentById = new Map(lateStudents.map((s) => [s.id, s]));
 

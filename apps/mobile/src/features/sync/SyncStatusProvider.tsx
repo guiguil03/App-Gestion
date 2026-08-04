@@ -4,7 +4,14 @@ import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
+import { registerBackgroundSync } from '@/services/backgroundSync';
 import { runSync } from '@/services/sync';
+
+// Sur un réseau "connecté" mais en réalité cassé (portail captif, Wi-Fi sans
+// sortie internet...), ni la reconnexion NetInfo ni le retour au premier plan
+// ne se déclenchent : un enseignant qui reste sur l'écran de scan verrait ses
+// pointages rester en attente indéfiniment sans ce filet.
+const FOREGROUND_SYNC_RETRY_INTERVAL_MS = 5 * 60 * 1000;
 
 type SyncStatus = {
   isOnline: boolean;
@@ -75,6 +82,17 @@ export function SyncStatusProvider({ children }: { children: ReactNode }) {
     });
     return () => subscription.remove();
   }, [triggerSync]);
+
+  useEffect(() => {
+    const interval = setInterval(triggerSync, FOREGROUND_SYNC_RETRY_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [triggerSync]);
+
+  useEffect(() => {
+    registerBackgroundSync().catch((error) => {
+      console.warn("[sync] échec de l'enregistrement de la tâche de fond", error);
+    });
+  }, []);
 
   const value = useMemo(
     () => ({ isOnline, isSyncing, lastSyncedAt, triggerSync }),

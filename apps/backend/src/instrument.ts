@@ -1,8 +1,7 @@
 import * as Sentry from '@sentry/nestjs';
 
 // Doit être importé avant tout autre module (voir main.ts) — un DSN absent
-// désactive silencieusement le SDK (aucun compte Sentry créé pour l'instant,
-// voir SENTRY_DSN dans .env.example).
+// désactive silencieusement le SDK (voir SENTRY_DSN dans .env.example / Railway).
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.NODE_ENV ?? 'development',

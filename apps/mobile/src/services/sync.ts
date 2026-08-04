@@ -14,6 +14,10 @@ type PullResponse = {
   timestamp: number;
 };
 
+type PushResponse = {
+  rejectedAttendanceRecords: { id: string; reason: string }[];
+};
+
 type RawAttendanceRecordChange = {
   id: string;
   student_id: string;
@@ -139,19 +143,37 @@ async function synchronizeDatabase(database: Database): Promise<void> {
       }));
       const pickedUpdatedSessions = updatedSessions.map(({ id, closed_at }) => ({ id, closed_at }));
 
-      await apiClient.post('/sync/push', {
+      const { data: pushResult } = await apiClient.post<PushResponse>('/sync/push', {
         changes: {
           attendance_records: { created: pickedRecords },
           attendance_sessions: { created: pickedCreatedSessions, updated: pickedUpdatedSessions },
         },
       });
 
+      // Le backend peut rejeter un pointage en défense en profondeur (hors
+      // plage horaire de pointage) sans lever d'erreur HTTP — voir le
+      // commentaire de SyncService.push. On ne le marque donc PAS comme
+      // synchronisé localement (sinon il disparaît silencieusement sans
+      // jamais avoir existé côté serveur), et on le signale à Sentry pour
+      // qu'il reste visible : WatermelonDB considère malgré tout ce cycle de
+      // push terminé (aucune exception levée ici), donc ce pointage ne sera
+      // pas réessayé automatiquement — une correction manuelle depuis le
+      // dashboard (fiche élève / pointage rapide par classe) reste possible.
+      const rejectedIds = new Set(pushResult.rejectedAttendanceRecords.map((r) => r.id));
+      if (rejectedIds.size > 0) {
+        Sentry.captureMessage('Pointages rejetés par le serveur (non synchronisés)', {
+          level: 'warning',
+          extra: { rejected: pushResult.rejectedAttendanceRecords },
+        });
+      }
+
       // Marque précisément les lignes qui viennent d'être envoyées (par id) —
       // pas toutes les lignes non-synchronisées, pour éviter de marquer à
       // tort un scan/session concurrent qui serait arrivé pendant ce cycle.
+      // Les lignes rejetées par le serveur sont exclues (voir ci-dessus).
       const syncedAt = new Date();
 
-      const recordIds = pickedRecords.map((row) => row.id);
+      const recordIds = pickedRecords.map((row) => row.id).filter((id) => !rejectedIds.has(id));
       const records = recordIds.length
         ? await database.get<AttendanceRecord>('attendance_records').query(Q.where('id', Q.oneOf(recordIds))).fetch()
         : [];
