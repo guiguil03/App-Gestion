@@ -7,6 +7,7 @@ import { KpiCard, KpiCardSkeleton } from '@/components/ui/kpi-card';
 import { cn } from '@/lib/utils';
 import { useAlerts, useClassesComparison, useOverview, useTrend } from '@/lib/hooks/useDashboard';
 import { useDashboardStream } from '@/lib/realtime/useDashboardStream';
+import { QuickRollCall } from './_components/quick-roll-call';
 
 const TREND_PERIODS = [
   { value: 'week', label: '7 derniers jours' },
@@ -84,6 +85,8 @@ export default function DashboardOverviewPage() {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      <QuickRollCall />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">

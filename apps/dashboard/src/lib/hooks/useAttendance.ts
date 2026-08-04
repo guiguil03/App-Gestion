@@ -7,11 +7,12 @@ import type { ManualAttendanceInput, PresenceListParams } from '@/types/attendan
  * automatiquement par `useDashboardStream` (invalidation SSE sur
  * `attendance.recorded`), comme le reste des données de la page d'accueil.
  */
-export function usePresenceList(params: PresenceListParams) {
+export function usePresenceList(params: PresenceListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['dashboard', 'presences', params],
     queryFn: () => attendanceApi.listForDay(params),
     placeholderData: (previousData) => previousData,
+    enabled: options?.enabled ?? true,
   });
 }
 
