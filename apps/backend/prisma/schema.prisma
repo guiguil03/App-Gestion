@@ -253,6 +253,9 @@ model AttendanceRecord {
   @@unique([sessionId, studentId])
   @@index([studentId])
   @@index([recordedAt])
+  // Filtré à chaque pull mobile (SyncService.pull, toutes les 5 min, tous les
+  // appareils) — sans index, scan complet de la table à mesure qu'elle grossit.
+  @@index([receivedAt])
   @@map("attendance_records")
 }
 
