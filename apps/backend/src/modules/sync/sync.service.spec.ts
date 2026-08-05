@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 
 import { SyncService } from '@/modules/sync/sync.service';
 
@@ -77,5 +77,21 @@ describe('SyncService.push — isolation des pointages/sessions en échec', () =
     });
 
     expect(result.rejectedAttendanceSessions).toEqual([{ id: 'session-missing', reason: 'Session introuvable' }]);
+  });
+
+  it('logge un avertissement côté serveur quand un pointage est rejeté (invisible sinon : seul le mobile envoie à Sentry)', async () => {
+    const { service, attendance } = buildDeps();
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    attendance.recordFromSync.mockRejectedValueOnce(new ForbiddenException("Élève hors du périmètre de l'école"));
+
+    await service.push(user, {
+      attendance_records: { created: [{ id: 'raw-bad', student_id: 'student-bad' } as any] },
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [message] = warnSpy.mock.calls[0];
+    expect(message).toEqual(expect.stringContaining('raw-bad'));
+    expect(message).toEqual(expect.stringContaining("Élève hors du périmètre de l'école"));
+    warnSpy.mockRestore();
   });
 });

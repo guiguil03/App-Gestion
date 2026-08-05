@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
@@ -62,6 +62,8 @@ function firstSyncBucket<T>(rows: T[], since: Date): WatermelonChanges<T> {
 
 @Injectable()
 export class SyncService {
+  private readonly logger = new Logger(SyncService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly attendance: AttendanceService,
@@ -201,6 +203,11 @@ export class SyncService {
       await run();
     } catch (error) {
       if (!isExpectedRejection(error)) throw error;
+      // Seul l'appareil mobile signale ce rejet à Sentry (voir sync.ts côté
+      // mobile) : sans ce log, un rejet growing en fréquence (ex. bug de
+      // permission touchant plusieurs appareils) resterait invisible côté
+      // serveur.
+      this.logger.warn(`Ligne ${raw.id} rejetée du sync : ${error.message}`);
       rejections.push({ id: raw.id, reason: error.message });
     }
   }
