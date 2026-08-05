@@ -26,7 +26,7 @@ describe('AdminAccountsService.create', () => {
     expect(result.username).toBe('jean.dupont');
     expect(result.password).toHaveLength(8);
     expect(prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ username: 'jean.dupont', role: 'ADMIN', schoolId: null }),
+      data: expect.objectContaining({ username: 'jean.dupont', role: 'ADMIN', schoolId: null, mustChangePassword: true }),
     });
   });
 });

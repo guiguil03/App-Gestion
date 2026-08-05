@@ -26,7 +26,12 @@ describe('StaffService.create', () => {
     expect(result.username).toBe('jean.dupont');
     expect(result.password).toHaveLength(8);
     expect(prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ username: 'jean.dupont', role: 'ENSEIGNANT', schoolId: 'school-1' }),
+      data: expect.objectContaining({
+        username: 'jean.dupont',
+        role: 'ENSEIGNANT',
+        schoolId: 'school-1',
+        mustChangePassword: true,
+      }),
     });
   });
 });
@@ -42,7 +47,10 @@ describe('StaffService.resetPassword', () => {
 
     expect(result.username).toBe('jean.dupont');
     expect(result.password).toHaveLength(8);
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { passwordHash: expect.any(String) } });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { passwordHash: expect.any(String), mustChangePassword: true },
+    });
   });
 
   it('rejects resetting an account outside the current school or not staff', async () => {

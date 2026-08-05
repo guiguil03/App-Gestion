@@ -54,7 +54,7 @@ describe('AdminSchoolsService.create', () => {
       }),
     });
     expect(prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ role: 'DIRECTION', schoolId: 'school-1' }),
+      data: expect.objectContaining({ role: 'DIRECTION', schoolId: 'school-1', mustChangePassword: true }),
     });
     expect(result.school).toEqual({ id: 'school-1', name: 'École B' });
     expect(result.directionAccount.username).toBeTruthy();

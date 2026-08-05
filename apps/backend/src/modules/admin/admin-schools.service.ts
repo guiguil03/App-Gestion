@@ -70,7 +70,9 @@ export class AdminSchoolsService {
     const username = await generateUniqueUsername(this.prisma, dto.name, 'direction');
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
-    await this.prisma.user.create({ data: { username, passwordHash, role: 'DIRECTION', schoolId: school.id } });
+    await this.prisma.user.create({
+      data: { username, passwordHash, role: 'DIRECTION', schoolId: school.id, mustChangePassword: true },
+    });
 
     return {
       school: { id: school.id, name: school.name },

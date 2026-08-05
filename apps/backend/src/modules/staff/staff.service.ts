@@ -21,7 +21,9 @@ export class StaffService {
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await this.prisma.user.create({ data: { username, passwordHash, role: dto.role, schoolId } });
+    await this.prisma.user.create({
+      data: { username, passwordHash, role: dto.role, schoolId, mustChangePassword: true },
+    });
 
     return { username, password };
   }
@@ -51,7 +53,7 @@ export class StaffService {
 
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true } });
 
     return { username: user.username, password };
   }

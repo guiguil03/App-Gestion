@@ -23,7 +23,9 @@ export class AdminAccountsService {
     const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await this.prisma.user.create({ data: { username, passwordHash, role: 'ADMIN', schoolId: null } });
+    await this.prisma.user.create({
+      data: { username, passwordHash, role: 'ADMIN', schoolId: null, mustChangePassword: true },
+    });
 
     return { username, password };
   }
