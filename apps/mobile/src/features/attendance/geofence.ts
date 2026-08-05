@@ -14,7 +14,10 @@ function toMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-function schoolLocalMinutes(now: Date): number {
+// Exporté pour lateDetection.ts, qui a besoin de la même heure locale école
+// (même souci de fuseau : un retard calculé avec l'heure du téléphone peut
+// diverger du recalcul serveur, qui lui fait foi — cf. AttendanceService.recordFromSync).
+export function schoolLocalMinutes(now: Date): number {
   const parts = new Intl.DateTimeFormat('fr-FR', {
     timeZone: SCHOOL_TIME_ZONE,
     hourCycle: 'h23',
