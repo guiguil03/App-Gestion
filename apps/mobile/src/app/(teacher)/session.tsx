@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import AttendanceSession from '@/db/models/AttendanceSession';
 import { useOptionalDatabase } from '@/db/useOptionalDatabase';
 import { useSelectedClass } from '@/features/classes/SelectedClassContext';
+import { useSyncStatus } from '@/features/sync/SyncStatusProvider';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/theme/theme';
 import { getDecodedAccessToken } from '@/services/secureStorage';
@@ -22,6 +23,7 @@ const SESSION_DURATION_MS = 15 * 60 * 1000;
 export default function SessionScreen() {
   const theme = useTheme();
   const database = useOptionalDatabase();
+  const { triggerSync } = useSyncStatus();
   const { selectedClassId: classId } = useSelectedClass();
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -55,6 +57,13 @@ export default function SessionScreen() {
         );
         if (isCancelled) return;
         setSession(record);
+        // Le QR s'affiche tout de suite, mais la session ne devient visible
+        // au push d'un élève que le serveur ait déjà reçu ce sync — sans ce
+        // déclenchement immédiat (même logique que useRecordAttendance.ts),
+        // un élève scannant pendant les premières secondes se ferait
+        // rejeter avec "Session de présence introuvable" en attendant le
+        // prochain sync automatique (jusqu'à 5 min).
+        triggerSync();
 
         const { qrCode: signed } = await signSessionPayload({
           sessionId: record.id,
@@ -76,7 +85,7 @@ export default function SessionScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [database, classId]);
+  }, [database, classId, triggerSync]);
 
   useEffect(() => {
     if (!session) return;
@@ -101,6 +110,7 @@ export default function SessionScreen() {
         s.closedAt = new Date();
       }),
     );
+    triggerSync();
     router.back();
   }
 
