@@ -15,6 +15,7 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { CardsModule } from '@/modules/cards/cards.module';
 import { ClassesModule } from '@/modules/classes/classes.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
+import { HealthModule } from '@/modules/health/health.module';
 import { MediaModule } from '@/modules/media/media.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
@@ -32,6 +33,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     ScheduleModule.forRoot(),
     CommonModule,
     PrismaModule,
+    HealthModule,
     AuditModule,
     AuthModule,
     SchoolsModule,
