@@ -80,6 +80,32 @@ describe('AbsencesService.detectAbsences', () => {
     );
   });
 
+  // Un pointage "Salle de classe" (carte oubliée, pointage manuel de
+  // l'enseignant) doit compter comme présent au même titre qu'un pointage
+  // Portail — sinon l'élève se fait marquer absent (et le parent reçoit un
+  // SMS) malgré un vrai pointage du jour.
+  it('does not mark absent a student with any attendance record today, even a non-PORTAIL/ENTREE one', async () => {
+    const prisma = buildPrisma({
+      school: {
+        findMany: jest.fn().mockResolvedValue([
+          school({ id: 'school-1', attendanceReferenceTime: '07:30', attendanceToleranceMinutes: 15 }),
+        ]),
+      },
+      student: { findMany: jest.fn().mockResolvedValue([{ id: 'student-1' }]) },
+      attendanceRecord: { findMany: jest.fn().mockResolvedValue([{ studentId: 'student-1' }]) },
+    });
+    const events = { emit: jest.fn() } as any;
+    const service = new AbsencesService(prisma, events);
+
+    await service.detectAbsences(new Date('2026-07-14T08:00:00'));
+
+    expect(prisma.absence.upsert).not.toHaveBeenCalled();
+    expect(events.emit).not.toHaveBeenCalled();
+    const query = prisma.attendanceRecord.findMany.mock.calls[0][0];
+    expect(query.where.checkpoint).toBeUndefined();
+    expect(query.where.direction).toBeUndefined();
+  });
+
   it('does not re-process a student already marked absent today (idempotent)', async () => {
     const prisma = buildPrisma({
       school: {

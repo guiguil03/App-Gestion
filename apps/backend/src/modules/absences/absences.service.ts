@@ -32,8 +32,9 @@ export class AbsencesService {
   ) {}
 
   /**
-   * Marque absent tout élève sans pointage PORTAIL/ENTREE du jour, pour les
-   * écoles ayant dépassé leur heure de référence + tolérance. Idempotent :
+   * Marque absent tout élève sans aucun pointage du jour (peu importe le
+   * checkpoint/la direction — Portail comme Salle de classe comptent), pour
+   * les écoles ayant dépassé leur heure de référence + tolérance. Idempotent :
    * un élève déjà marqué absent aujourd'hui n'est jamais retraité (voir
    * `Absence.@@unique([studentId, date])`). Appelée par `AbsenceDetectionJob`
    * toutes les 5 minutes — `now` est un paramètre pour rester testable.
@@ -60,11 +61,14 @@ export class AbsencesService {
 
       const [students, presentRecords, existingAbsences] = await Promise.all([
         this.prisma.student.findMany({ where: { schoolId: school.id, deletedAt: null }, select: { id: true } }),
+        // N'importe quel pointage du jour compte comme présent (Portail ou
+        // Salle de classe, scan ou manuel) — un élève pointé "Salle de
+        // classe" (carte oubliée) n'est pas moins présent qu'au portail ; le
+        // restreindre à PORTAIL/ENTREE enverrait à tort un SMS "absent" à son
+        // parent malgré un vrai pointage du jour.
         this.prisma.attendanceRecord.findMany({
           where: {
             student: { schoolId: school.id },
-            checkpoint: 'PORTAIL',
-            direction: 'ENTREE',
             recordedAt: { gte: startOfDay },
           },
           select: { studentId: true },

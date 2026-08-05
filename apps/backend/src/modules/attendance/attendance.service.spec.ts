@@ -41,7 +41,11 @@ describe('AttendanceService.recordFromSync — stale absence cleanup', () => {
     expect(prisma.absence.deleteMany).toHaveBeenCalledWith({ where: { studentId: 'student-1', date: '2026-07-14' } });
   });
 
-  it('does not touch absences for a SORTIE record', async () => {
+  // Un élève pointé "Salle de classe" (carte oubliée, pointage manuel de
+  // l'enseignant) est tout autant présent qu'un pointage Portail : ne pas
+  // annuler son absence sur ce seul motif de checkpoint/direction enverrait
+  // à tort un SMS "absent" à son parent malgré un vrai pointage du jour.
+  it('deletes any existing Absence regardless of checkpoint/direction (ex. pointage Salle de classe)', async () => {
     const { service, prisma } = buildDeps();
 
     await service.recordFromSync(
@@ -49,14 +53,14 @@ describe('AttendanceService.recordFromSync — stale absence cleanup', () => {
       {
         id: 'raw-2',
         student_id: 'student-1',
-        checkpoint: 'portail',
+        checkpoint: 'classe',
         direction: 'sortie',
         recorded_at: '2026-07-14T16:00:00',
         session_id: undefined,
       } as any,
     );
 
-    expect(prisma.absence.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.absence.deleteMany).toHaveBeenCalledWith({ where: { studentId: 'student-1', date: '2026-07-14' } });
   });
 });
 

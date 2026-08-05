@@ -143,15 +143,11 @@ export class AttendanceService {
       });
     }
 
-    // Un pointage PORTAIL/ENTREE (même tardif) annule une absence déjà
-    // marquée par AbsenceDetectionJob pour ce jour — un retard n'est pas une
-    // absence.
-    if (
-      toCheckpoint(raw.checkpoint) === Checkpoint.PORTAIL &&
-      toDirection(raw.direction) === AttendanceDirection.ENTREE
-    ) {
-      await this.prisma.absence.deleteMany({ where: { studentId: student.id, date: dateKey(recordedAt) } });
-    }
+    // N'importe quel pointage (même tardif, même Salle de classe, même
+    // SORTIE) annule une absence déjà marquée par AbsenceDetectionJob pour ce
+    // jour — voir AbsencesService.detectAbsences pour la même règle en sens
+    // inverse (n'importe quel pointage du jour = présent).
+    await this.prisma.absence.deleteMany({ where: { studentId: student.id, date: dateKey(recordedAt) } });
 
     this.events.emit(
       ATTENDANCE_RECORDED_EVENT,
