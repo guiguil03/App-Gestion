@@ -67,10 +67,16 @@ async function fetchMyStudent(): Promise<StudentDetail> {
   }
 }
 
-/** Fiche d'identité de l'élève actuellement connecté (rôle ELEVE). */
-export function useMyStudent() {
+/**
+ * Fiche d'identité de l'élève actuellement connecté (rôle ELEVE). `enabled`
+ * permet de ne pas appeler `/students/me` (403 pour tout autre rôle) depuis
+ * un écran partagé entre rôles (ex. ProfileScreen) tant que le rôle courant
+ * n'est pas confirmé être ELEVE.
+ */
+export function useMyStudent(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['students', 'me'],
     queryFn: fetchMyStudent,
+    enabled: options?.enabled ?? true,
   });
 }

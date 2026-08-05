@@ -139,7 +139,7 @@ export class StudentsController {
   }
 
   @Post(':studentId/photo')
-  @Roles('DIRECTION', 'ADMIN', 'PARENT')
+  @Roles('DIRECTION', 'ADMIN', 'PARENT', 'ELEVE')
   @UseInterceptors(
     FileInterceptor('photo', {
       // Buffer en mémoire, jamais écrit sur disque tel quel : le nom de
@@ -159,6 +159,11 @@ export class StudentsController {
   ) {
     if (user.role === 'PARENT') {
       await this.studentsService.assertParentOwnsStudent(user.userId, studentId);
+    }
+    // Un compte ELEVE ne peut changer que sa propre photo — pas de vérif en
+    // base nécessaire, son studentId est déjà dans le JWT (cf. `getMe`).
+    if (user.role === 'ELEVE' && user.studentId !== studentId) {
+      throw new ForbiddenException("Ce compte ne correspond à aucun élève");
     }
     await this.studentsService.assertBelongsToSchool(studentId, this.tenant.schoolId);
 
