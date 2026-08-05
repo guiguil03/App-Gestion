@@ -16,6 +16,7 @@ type PullResponse = {
 
 type PushResponse = {
   rejectedAttendanceRecords: { id: string; reason: string }[];
+  rejectedAttendanceSessions: { id: string; reason: string }[];
 };
 
 type RawAttendanceRecordChange = {
@@ -167,6 +168,17 @@ async function synchronizeDatabase(database: Database): Promise<void> {
         });
       }
 
+      // Même logique que pour les pointages : une session peut être rejetée
+      // individuellement (ex. classe réassignée entre-temps) sans faire
+      // échouer tout le push — voir le commentaire de SyncService.push.
+      const rejectedSessionIds = new Set(pushResult.rejectedAttendanceSessions.map((r) => r.id));
+      if (rejectedSessionIds.size > 0) {
+        Sentry.captureMessage('Sessions de présence rejetées par le serveur (non synchronisées)', {
+          level: 'warning',
+          extra: { rejected: pushResult.rejectedAttendanceSessions },
+        });
+      }
+
       // Marque précisément les lignes qui viennent d'être envoyées (par id) —
       // pas toutes les lignes non-synchronisées, pour éviter de marquer à
       // tort un scan/session concurrent qui serait arrivé pendant ce cycle.
@@ -178,7 +190,9 @@ async function synchronizeDatabase(database: Database): Promise<void> {
         ? await database.get<AttendanceRecord>('attendance_records').query(Q.where('id', Q.oneOf(recordIds))).fetch()
         : [];
 
-      const sessionIds = [...pickedCreatedSessions.map((row) => row.id), ...pickedUpdatedSessions.map((row) => row.id)];
+      const sessionIds = [...pickedCreatedSessions.map((row) => row.id), ...pickedUpdatedSessions.map((row) => row.id)].filter(
+        (id) => !rejectedSessionIds.has(id),
+      );
       const sessions = sessionIds.length
         ? await database
             .get<AttendanceSession>('attendance_sessions')

@@ -1,11 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import { AttendanceSessionsService } from '@/modules/attendance/attendance-sessions.service';
-import { AttendanceService, type AttendanceRejectionReason } from '@/modules/attendance/attendance.service';
+import { AttendanceService } from '@/modules/attendance/attendance.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import type { PushChangesBody } from '@/modules/sync/dto/push-changes.dto';
+
+// Rejet métier attendu (donnée du device invalide/obsolète — classe
+// réassignée, session expirée côté serveur, élève hors périmètre...) :
+// à isoler par ligne plutôt que de faire échouer tout le push, sans quoi un
+// seul enregistrement "poison" bloquerait indéfiniment toute la file
+// WatermelonDB (qui rejoue le même lot tant que le push répond autre chose
+// que 200). Toute autre erreur (panne DB, bug) doit continuer à remonter.
+function isExpectedRejection(error: unknown): error is ForbiddenException | NotFoundException {
+  return error instanceof ForbiddenException || error instanceof NotFoundException;
+}
 
 type WatermelonChanges<T> = { created: T[]; updated: T[]; deleted: string[] };
 
@@ -129,42 +139,70 @@ export class SyncService {
   }
 
   /**
-   * `recordFromSync` peut rejeter un pointage en défense en profondeur
-   * (hors plage horaire) sans lever d'exception (voir son
-   * commentaire) — sans remonter ces rejets ici, la requête répond 200 OK,
-   * l'appareil marque le pointage comme synchronisé, et l'enregistrement
-   * disparaît silencieusement sans jamais avoir existé en base. On les
-   * collecte donc pour que l'app mobile puisse prévenir l'utilisateur au
-   * lieu d'afficher à tort "synchronisé".
+   * `recordFromSync` peut rejeter un pointage en défense en profondeur (hors
+   * plage horaire) sans lever d'exception (voir son commentaire) ; les
+   * services de session/pointage peuvent aussi lever une ForbiddenException/
+   * NotFoundException "métier" (classe réassignée, session expirée côté
+   * serveur, élève hors périmètre...) sur une ligne poussée par un appareil
+   * dont l'état local est obsolète. Dans les deux cas on isole la ligne en
+   * échec au lieu de laisser l'exception remonter : sans ce traitement par
+   * ligne, une seule ligne invalide ferait échouer toute la requête (403),
+   * WatermelonDB ne marquerait alors RIEN comme synchronisé et rejouerait le
+   * même lot (avec la même ligne invalide) à chaque sync suivant — bloquant
+   * indéfiniment tout pointage ultérieur de cet appareil. Les rejets sont
+   * remontés pour que l'app mobile puisse prévenir l'utilisateur au lieu
+   * d'afficher à tort "synchronisé". Une erreur imprévue (panne DB, bug)
+   * n'est elle jamais avalée : elle continue de faire échouer la requête.
    */
   async push(
     user: AuthenticatedUser,
     changes: PushChangesBody['changes'],
-  ): Promise<{ rejectedAttendanceRecords: { id: string; reason: AttendanceRejectionReason }[] }> {
+  ): Promise<{
+    rejectedAttendanceRecords: { id: string; reason: string }[];
+    rejectedAttendanceSessions: { id: string; reason: string }[];
+  }> {
+    const rejectedAttendanceSessions: { id: string; reason: string }[] = [];
+
     // Les sessions doivent être créées avant les pointages qui les
     // référencent : un même cycle de push peut pousser les deux dans le même
     // aller, l'ordre importe donc (cas d'un appareil élève qui aurait aussi
     // une session à pousser n'existe pas en v1, mais reste défensif).
     const createdSessions = changes.attendance_sessions?.created ?? [];
     for (const raw of createdSessions) {
-      await this.attendanceSessions.createFromSync(user, raw);
+      await this.tryReject(rejectedAttendanceSessions, raw, () => this.attendanceSessions.createFromSync(user, raw));
     }
 
     const updatedSessions = changes.attendance_sessions?.updated ?? [];
     for (const raw of updatedSessions) {
-      await this.attendanceSessions.closeFromSync(user, raw);
+      await this.tryReject(rejectedAttendanceSessions, raw, () => this.attendanceSessions.closeFromSync(user, raw));
     }
 
-    const rejectedAttendanceRecords: { id: string; reason: AttendanceRejectionReason }[] = [];
+    const rejectedAttendanceRecords: { id: string; reason: string }[] = [];
     const created = changes.attendance_records?.created ?? [];
     for (const raw of created) {
-      const result = await this.attendance.recordFromSync(user, raw);
-      if (result && 'rejected' in result) {
-        rejectedAttendanceRecords.push({ id: result.id, reason: result.reason });
-      }
+      await this.tryReject(rejectedAttendanceRecords, raw, async () => {
+        const result = await this.attendance.recordFromSync(user, raw);
+        if (result && 'rejected' in result) {
+          rejectedAttendanceRecords.push({ id: result.id, reason: result.reason });
+        }
+      });
     }
 
-    return { rejectedAttendanceRecords };
+    return { rejectedAttendanceRecords, rejectedAttendanceSessions };
+  }
+
+  /** Exécute `run`, isole tout rejet métier attendu dans `rejections` sans interrompre l'appelant — voir le commentaire de `push`. */
+  private async tryReject(
+    rejections: { id: string; reason: string }[],
+    raw: { id: string },
+    run: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await run();
+    } catch (error) {
+      if (!isExpectedRejection(error)) throw error;
+      rejections.push({ id: raw.id, reason: error.message });
+    }
   }
 }
 
