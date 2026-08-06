@@ -228,6 +228,35 @@ export class AttendanceService {
   }
 
   /**
+   * Modifie l'heure/le retard d'un pointage saisi manuellement — évite de
+   * devoir le supprimer puis le ressaisir pour une simple correction d'heure.
+   * Même restriction que `remove` (isManual uniquement, jamais un vrai scan)
+   * et même effet de bord que `recordManual` sur les absences : si la nouvelle
+   * date diffère de l'ancienne (correction d'une saisie du mauvais jour), une
+   * absence déjà marquée pour la nouvelle date est annulée.
+   */
+  async update(id: string, schoolId: string, opts: { date: string; time: string; isLate: boolean }) {
+    const record = await this.prisma.attendanceRecord.findFirst({ where: { id, student: { schoolId } } });
+    if (!record) {
+      throw new NotFoundException('Pointage introuvable');
+    }
+    if (!record.isManual) {
+      throw new ForbiddenException('Seul un pointage saisi manuellement peut être modifié');
+    }
+
+    const recordedAt = new Date(`${opts.date}T${opts.time}:00`);
+    const updated = await this.prisma.attendanceRecord.update({
+      where: { id },
+      data: { recordedAt, isLate: opts.isLate },
+    });
+
+    this.logger.log(`Pointage manuel ${id} modifié pour l'élève ${record.studentId} (retard=${opts.isLate})`);
+    await this.prisma.absence.deleteMany({ where: { studentId: record.studentId, date: dateKey(recordedAt) } });
+
+    return updated;
+  }
+
+  /**
    * Liste des pointages bruts d'une journée — contrepartie de la page
    * Absences (§3.6) : suivi au jour le jour de qui a effectivement pointé,
    * plutôt qu'un statut agrégé par élève/période comme ReportsService. Une

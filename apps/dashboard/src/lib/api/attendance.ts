@@ -7,6 +7,8 @@ export const attendanceApi = {
   recordManual: async (studentId: string, input: ManualAttendanceInput) =>
     (await apiClient.post(`/attendance/${studentId}`, input)).data,
   // Réservé aux pointages saisis manuellement (isManual) — voir
-  // AttendanceService.remove côté backend, qui refuse un vrai scan.
+  // AttendanceService.remove/update côté backend, qui refusent un vrai scan.
   removeRecord: async (id: string) => (await apiClient.delete(`/attendance/${id}`)).data,
+  updateRecord: async (id: string, input: ManualAttendanceInput) =>
+    (await apiClient.patch(`/attendance/${id}`, input)).data,
 };

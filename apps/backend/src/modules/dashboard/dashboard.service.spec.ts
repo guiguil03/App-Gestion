@@ -6,6 +6,7 @@ function buildPrisma(overrides: Record<string, any> = {}) {
     attendanceRecord: { findMany: jest.fn().mockResolvedValue([]), groupBy: jest.fn().mockResolvedValue([]) },
     absence: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     schoolClass: { findMany: jest.fn().mockResolvedValue([]) },
+    auditLog: { findMany: jest.fn().mockResolvedValue([]) },
     ...overrides,
   } as any;
 }
@@ -90,6 +91,51 @@ describe('DashboardService.getAlerts', () => {
     expect(studentFindMany).toHaveBeenCalledWith({
       where: { id: { in: ['s2'] }, schoolId: 'school-1' },
     });
+  });
+
+  it('surfaces recently failed SMS/push deliveries as an alert, scoped by school and a 7-day window', async () => {
+    const prisma = buildPrisma({
+      auditLog: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'log-1', createdAt: new Date('2026-08-01T08:00:00Z'), action: 'NOTIFICATION_SMS_FAILED', targetId: 'student-1' },
+          { id: 'log-2', createdAt: new Date('2026-08-02T08:00:00Z'), action: 'NOTIFICATION_PUSH_FAILED', targetId: 'student-2' },
+        ]),
+      },
+      student: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'student-1', firstName: 'Jane', lastName: 'Doe' },
+          { id: 'student-2', firstName: 'Paul', lastName: 'Martin' },
+        ]),
+      },
+    });
+    const service = new DashboardService(prisma, buildAbsences());
+
+    const alerts = await service.getAlerts('school-1');
+
+    expect(alerts.failedNotifications).toEqual([
+      { id: 'log-1', createdAt: new Date('2026-08-01T08:00:00Z'), channel: 'SMS', studentId: 'student-1', firstName: 'Jane', lastName: 'Doe' },
+      { id: 'log-2', createdAt: new Date('2026-08-02T08:00:00Z'), channel: 'PUSH', studentId: 'student-2', firstName: 'Paul', lastName: 'Martin' },
+    ]);
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          schoolId: 'school-1',
+          action: { in: ['NOTIFICATION_SMS_FAILED', 'NOTIFICATION_PUSH_FAILED'] },
+        }),
+      }),
+    );
+  });
+
+  it('is an empty list when nothing failed recently, without an extra student lookup', async () => {
+    const studentFindMany = jest.fn();
+    const prisma = buildPrisma({ student: { count: jest.fn().mockResolvedValue(0), findMany: studentFindMany } });
+    const service = new DashboardService(prisma, buildAbsences());
+
+    const alerts = await service.getAlerts('school-1');
+
+    expect(alerts.failedNotifications).toEqual([]);
+    expect(studentFindMany).not.toHaveBeenCalled();
   });
 });
 

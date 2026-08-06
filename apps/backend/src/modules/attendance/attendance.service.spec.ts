@@ -14,6 +14,7 @@ function buildDeps() {
       create: jest.fn().mockResolvedValue({ id: 'record-manual-1' }),
       findFirst: jest.fn(),
       delete: jest.fn(),
+      update: jest.fn(),
     },
     absence: { deleteMany: jest.fn() },
   } as any;
@@ -198,6 +199,43 @@ describe('AttendanceService.recordManual', () => {
       'attendance.recorded',
       expect.objectContaining({ studentId: 'student-1', schoolId: 'school-1', isLate: false }),
     );
+  });
+});
+
+describe('AttendanceService.update', () => {
+  it('updates the time/late status of a manual record and clears any absence for the new date', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue({ id: 'record-1', studentId: 'student-1', isManual: true });
+    prisma.attendanceRecord.update.mockResolvedValue({ id: 'record-1', studentId: 'student-1', isLate: true });
+
+    const result = await service.update('record-1', 'school-1', { date: '2026-07-14', time: '08:20', isLate: true });
+
+    expect(prisma.attendanceRecord.update).toHaveBeenCalledWith({
+      where: { id: 'record-1' },
+      data: { recordedAt: new Date('2026-07-14T08:20:00'), isLate: true },
+    });
+    expect(prisma.absence.deleteMany).toHaveBeenCalledWith({ where: { studentId: 'student-1', date: '2026-07-14' } });
+    expect(result).toEqual({ id: 'record-1', studentId: 'student-1', isLate: true });
+  });
+
+  it('throws NotFoundException when the record does not exist or belongs to another school', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.update('record-1', 'school-1', { date: '2026-07-14', time: '08:20', isLate: true }),
+    ).rejects.toThrow('Pointage introuvable');
+    expect(prisma.attendanceRecord.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to modify a real scan (isManual: false)', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue({ id: 'record-1', studentId: 'student-1', isManual: false });
+
+    await expect(
+      service.update('record-1', 'school-1', { date: '2026-07-14', time: '08:20', isLate: true }),
+    ).rejects.toThrow('Seul un pointage saisi manuellement peut être modifié');
+    expect(prisma.attendanceRecord.update).not.toHaveBeenCalled();
   });
 });
 

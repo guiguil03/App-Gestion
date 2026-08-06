@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -56,6 +56,25 @@ export class AttendanceController {
       targetType: 'student',
       targetId: studentId,
       metadata: { date: dto.date, time: dto.time, isLate: dto.isLate },
+    });
+    return result;
+  }
+
+  // Correction d'heure/retard d'une saisie manuelle depuis la page
+  // Présences — voir le commentaire de AttendanceService.update.
+  @Patch(':id')
+  @Roles('DIRECTION', 'ADMIN')
+  async update(@Param('id') id: string, @Body() dto: CreateManualAttendanceDto, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.attendanceService.update(id, this.tenant.schoolId, dto);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'attendance.manual_update',
+      targetType: 'student',
+      targetId: result.studentId,
+      metadata: { attendanceRecordId: id, date: dto.date, time: dto.time, isLate: dto.isLate },
     });
     return result;
   }

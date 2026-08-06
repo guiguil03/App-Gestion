@@ -155,6 +155,23 @@ export default function DashboardOverviewPage() {
               ))}
               {alerts.data?.consecutiveAbsences.length === 0 && <p className="text-sm text-zinc-400">Aucune.</p>}
             </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500 mb-1">
+                Notifications non délivrées (7 derniers jours)
+              </p>
+              {(alerts.data?.failedNotifications ?? []).slice(0, 5).map((n) => (
+                <p key={n.id} className="text-sm text-red-600">
+                  {n.firstName} {n.lastName} — {n.channel === 'SMS' ? 'SMS' : 'Push'} échoué le{' '}
+                  {new Date(n.createdAt).toLocaleDateString('fr-FR')}
+                </p>
+              ))}
+              {alerts.data?.failedNotifications.length === 0 && <p className="text-sm text-zinc-400">Aucune.</p>}
+              {(alerts.data?.failedNotifications.length ?? 0) > 3 && (
+                <p className="text-xs text-red-500 mt-1">
+                  Plusieurs échecs récents — vérifie la configuration SMS/push si ça persiste.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

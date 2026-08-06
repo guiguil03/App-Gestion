@@ -25,8 +25,18 @@ export type ConsecutiveAbsenceAlert = {
   schoolClassName: string;
   consecutiveAbsences: number;
 };
+export type FailedNotification = {
+  id: string;
+  createdAt: string;
+  channel: 'SMS' | 'PUSH';
+  studentId: string | null;
+  firstName: string;
+  lastName: string;
+};
+
 export type DashboardAlerts = {
   unjustifiedAbsences: UnjustifiedAbsence[];
   repeatedLateness: RepeatedLateness[];
   consecutiveAbsences: ConsecutiveAbsenceAlert[];
+  failedNotifications: FailedNotification[];
 };

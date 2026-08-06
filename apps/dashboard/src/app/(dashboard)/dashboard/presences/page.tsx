@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Clock, Download, FileSpreadsheet, QrCode, Smartphone, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Download, FileSpreadsheet, Pencil, QrCode, Smartphone, Trash2, X } from 'lucide-react';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { getErrorMessage } from '@/lib/api/errors';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { useDeleteAttendanceRecord, usePresenceList } from '@/lib/hooks/useAttendance';
+import { useDeleteAttendanceRecord, usePresenceList, useUpdateAttendanceRecord } from '@/lib/hooks/useAttendance';
 import { exportPresenceListExcel, exportPresenceListPdf } from '@/lib/reports/export';
+import type { PresenceRecord } from '@/types/attendance';
 import { AddPresencePanel } from './_components/add-presence-panel';
 
 function todayKey(): string {
@@ -23,6 +24,9 @@ export default function PresencesPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTime, setEditTime] = useState('');
+  const [editIsLate, setEditIsLate] = useState(false);
 
   const classes = useClasses();
   const presences = usePresenceList({
@@ -41,6 +45,7 @@ export default function PresencesPage() {
     { enabled: !!classFilter },
   );
   const deleteRecord = useDeleteAttendanceRecord();
+  const updateRecord = useUpdateAttendanceRecord();
 
   const exportTitle = `Présences — ${selectedClass?.name ?? 'Toutes les classes'} — ${date}`;
   const exportFilenameBase = `presences-${classFilter ? `${selectedClass?.name ?? classFilter}-` : ''}${date}`;
@@ -55,6 +60,30 @@ export default function PresencesPage() {
       setRowError({ id: recordId, message: getErrorMessage(error, 'Impossible de supprimer ce pointage. Réessaie.') });
     } finally {
       setPendingDeleteId(null);
+    }
+  }
+
+  function startEdit(record: PresenceRecord) {
+    setEditingId(record.id);
+    setEditTime(new Date(record.recordedAt).toTimeString().slice(0, 5));
+    setEditIsLate(record.isLate);
+    setRowError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  // Le pointage édité reste par construction dans le même jour (les lignes
+  // affichées correspondent déjà toutes à `date`, voir AttendanceService.
+  // listForDay) — seule l'heure/le retard changent, pas la date elle-même.
+  async function handleSaveEdit(recordId: string) {
+    setRowError(null);
+    try {
+      await updateRecord.mutateAsync({ id: recordId, input: { date, time: editTime, isLate: editIsLate } });
+      setEditingId(null);
+    } catch (error) {
+      setRowError({ id: recordId, message: getErrorMessage(error, "Impossible d'enregistrer la modification. Réessaie.") });
     }
   }
 
@@ -150,18 +179,43 @@ export default function PresencesPage() {
                   </td>
                   <td className="p-3 text-zinc-500">{record.student.schoolClass.name}</td>
                   <td className="p-3 text-zinc-500">{record.checkpoint === 'PORTAIL' ? 'Portail' : 'Salle de classe'}</td>
-                  <td className="p-3 text-zinc-500 tabular-nums">
-                    {new Date(record.recordedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        record.isLate ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
-                      }`}
-                    >
-                      {record.isLate ? 'En retard' : 'À l’heure'}
-                    </span>
-                  </td>
+                  {editingId === record.id ? (
+                    <td className="p-3">
+                      <input
+                        type="time"
+                        value={editTime}
+                        onChange={(e) => setEditTime(e.target.value)}
+                        className="text-sm border border-zinc-200 rounded-lg px-2 py-1 tabular-nums"
+                      />
+                    </td>
+                  ) : (
+                    <td className="p-3 text-zinc-500 tabular-nums">
+                      {new Date(record.recordedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                  )}
+                  {editingId === record.id ? (
+                    <td className="p-3">
+                      <label className="inline-flex items-center gap-1.5 text-xs text-zinc-600">
+                        <input
+                          type="checkbox"
+                          checked={editIsLate}
+                          onChange={(e) => setEditIsLate(e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        En retard
+                      </label>
+                    </td>
+                  ) : (
+                    <td className="p-3">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          record.isLate ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                        }`}
+                      >
+                        {record.isLate ? 'En retard' : 'À l’heure'}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-3 text-zinc-400">
                     <span className="inline-flex items-center gap-1.5">
                       {record.isManual ? <Smartphone size={14} /> : <QrCode size={14} />}
@@ -169,16 +223,49 @@ export default function PresencesPage() {
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    {record.isManual && (
-                      <button
-                        type="button"
-                        disabled={pendingDeleteId === record.id}
-                        onClick={() => void handleDelete(record.id)}
-                        title="Supprimer ce pointage manuel erroné"
-                        className="inline-flex items-center rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    {editingId === record.id ? (
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          disabled={updateRecord.isPending}
+                          onClick={() => void handleSaveEdit(record.id)}
+                          title="Enregistrer"
+                          className="inline-flex items-center rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updateRecord.isPending}
+                          onClick={cancelEdit}
+                          title="Annuler"
+                          className="inline-flex items-center rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 disabled:opacity-40"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      record.isManual && (
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(record)}
+                            title="Corriger l'heure/le retard de ce pointage manuel"
+                            className="inline-flex items-center rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pendingDeleteId === record.id}
+                            onClick={() => void handleDelete(record.id)}
+                            title="Supprimer ce pointage manuel erroné"
+                            className="inline-flex items-center rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )
                     )}
                     {rowError?.id === record.id && <p className="mt-1 text-xs text-red-600">{rowError.message}</p>}
                   </td>

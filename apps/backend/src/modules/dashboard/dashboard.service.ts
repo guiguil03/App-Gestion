@@ -11,6 +11,7 @@ import { AttendanceRecordedEvent, ATTENDANCE_RECORDED_EVENT } from '@/modules/at
 
 const REPEATED_LATENESS_THRESHOLD = 3;
 const REPEATED_LATENESS_WINDOW_DAYS = 30;
+const FAILED_NOTIFICATIONS_WINDOW_DAYS = 7;
 
 function startOfToday(): Date {
   const start = new Date();
@@ -99,8 +100,10 @@ export class DashboardService {
   async getAlerts(schoolId: string) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - REPEATED_LATENESS_WINDOW_DAYS);
+    const notificationCutoff = new Date();
+    notificationCutoff.setDate(notificationCutoff.getDate() - FAILED_NOTIFICATIONS_WINDOW_DAYS);
 
-    const [unjustifiedAbsences, lateGroups, consecutiveAbsences] = await Promise.all([
+    const [unjustifiedAbsences, lateGroups, consecutiveAbsences, failedNotificationLogs] = await Promise.all([
       this.prisma.absence.findMany({
         where: { student: { schoolId }, justified: false },
         include: { student: true },
@@ -114,6 +117,20 @@ export class DashboardService {
         having: { studentId: { _count: { gte: REPEATED_LATENESS_THRESHOLD } } },
       }),
       this.absences.listConsecutiveAbsenceAlerts(schoolId),
+      // Alerte opérationnelle (pas pédagogique comme les 3 autres) : détecte
+      // un problème de livraison (passerelle SMS mal configurée, token push
+      // expiré...) que ni Direction ni le parent concerné ne verraient sinon
+      // — voir NotificationsService.logNotification pour l'écriture de ces
+      // entrées.
+      this.prisma.auditLog.findMany({
+        where: {
+          schoolId,
+          action: { in: ['NOTIFICATION_SMS_FAILED', 'NOTIFICATION_PUSH_FAILED'] },
+          createdAt: { gte: notificationCutoff },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
     ]);
 
     const lateStudentIds = lateGroups.map((g) => g.studentId);
@@ -121,6 +138,14 @@ export class DashboardService {
       ? await this.prisma.student.findMany({ where: { id: { in: lateStudentIds }, schoolId } })
       : [];
     const lateStudentById = new Map(lateStudents.map((s) => [s.id, s]));
+
+    const failedNotificationStudentIds = [
+      ...new Set(failedNotificationLogs.map((log) => log.targetId).filter((id): id is string => !!id)),
+    ];
+    const failedNotificationStudents = failedNotificationStudentIds.length
+      ? await this.prisma.student.findMany({ where: { id: { in: failedNotificationStudentIds }, schoolId } })
+      : [];
+    const failedNotificationStudentById = new Map(failedNotificationStudents.map((s) => [s.id, s]));
 
     return {
       unjustifiedAbsences: unjustifiedAbsences.map((absence) => ({
@@ -140,6 +165,17 @@ export class DashboardService {
         };
       }),
       consecutiveAbsences,
+      failedNotifications: failedNotificationLogs.map((log) => {
+        const student = log.targetId ? failedNotificationStudentById.get(log.targetId) : undefined;
+        return {
+          id: log.id,
+          createdAt: log.createdAt,
+          channel: log.action.includes('SMS') ? ('SMS' as const) : ('PUSH' as const),
+          studentId: log.targetId,
+          firstName: student?.firstName ?? '',
+          lastName: student?.lastName ?? '',
+        };
+      }),
     };
   }
 

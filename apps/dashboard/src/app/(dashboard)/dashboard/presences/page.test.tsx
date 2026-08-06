@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 jest.mock('@/lib/api/classes', () => ({ classesApi: { list: jest.fn() } }));
 jest.mock('@/lib/api/students', () => ({ studentsApi: { list: jest.fn() } }));
 jest.mock('@/lib/api/attendance', () => ({
-  attendanceApi: { listForDay: jest.fn(), recordManual: jest.fn(), removeRecord: jest.fn() },
+  attendanceApi: { listForDay: jest.fn(), recordManual: jest.fn(), removeRecord: jest.fn(), updateRecord: jest.fn() },
 }));
 jest.mock('@/lib/reports/export', () => ({
   exportPresenceListPdf: jest.fn(),
@@ -53,6 +53,7 @@ beforeEach(() => {
   (studentsApi.list as jest.Mock).mockResolvedValue([]);
   (attendanceApi.listForDay as jest.Mock).mockResolvedValue([scanRecord, manualRecord]);
   (attendanceApi.removeRecord as jest.Mock).mockResolvedValue({ success: true });
+  (attendanceApi.updateRecord as jest.Mock).mockResolvedValue({ success: true });
   window.confirm = jest.fn().mockReturnValue(true);
 });
 
@@ -85,6 +86,46 @@ describe('PresencesPage — delete a manual record', () => {
     await user.click(screen.getByTitle('Supprimer ce pointage manuel erroné'));
 
     expect(attendanceApi.removeRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe('PresencesPage — edit a manual record', () => {
+  it('only shows an edit button for manual entries, not real scans', async () => {
+    renderPage();
+
+    await screen.findByText('Jane Doe');
+    expect(screen.getAllByTitle("Corriger l'heure/le retard de ce pointage manuel")).toHaveLength(1);
+  });
+
+  it('saves the new time and late status, for the date currently selected on the page', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText('Jane Doe');
+    const dateInput = screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/) as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-08-06' } });
+
+    await user.click(screen.getByTitle("Corriger l'heure/le retard de ce pointage manuel"));
+    const timeInput = screen.getByDisplayValue(/^\d{2}:\d{2}$/);
+    fireEvent.change(timeInput, { target: { value: '08:30' } });
+    await user.click(screen.getByRole('checkbox', { name: /En retard/ }));
+    await user.click(screen.getByTitle('Enregistrer'));
+
+    await waitFor(() =>
+      expect(attendanceApi.updateRecord).toHaveBeenCalledWith('r2', { date: '2026-08-06', time: '08:30', isLate: true }),
+    );
+  });
+
+  it('closes the editor without saving when cancelled', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText('Jane Doe');
+    await user.click(screen.getByTitle("Corriger l'heure/le retard de ce pointage manuel"));
+    await user.click(screen.getByTitle('Annuler'));
+
+    expect(attendanceApi.updateRecord).not.toHaveBeenCalled();
+    expect(screen.queryByTitle('Enregistrer')).not.toBeInTheDocument();
   });
 });
 
