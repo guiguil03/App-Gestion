@@ -18,6 +18,8 @@ export function QuickRollCall() {
   const [schoolClassId, setSchoolClassId] = useState('');
   const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ studentId: string; message: string } | null>(null);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const classes = useClasses();
   const students = useStudents();
@@ -28,6 +30,9 @@ export function QuickRollCall() {
   const classStudents = (students.data ?? [])
     .filter((s) => s.schoolClassId === schoolClassId)
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
+  const unmarkedStudents = classStudents.filter(
+    (student) => !presences.data?.some((r) => r.student.id === student.id),
+  );
 
   async function handleMark(studentId: string, isLate: boolean) {
     setRowError(null);
@@ -41,6 +46,33 @@ export function QuickRollCall() {
       setRowError({ studentId, message: getErrorMessage(error, "Impossible d'enregistrer la présence. Réessaie.") });
     } finally {
       setPendingStudentId(null);
+    }
+  }
+
+  async function handleMarkAllPresent() {
+    if (unmarkedStudents.length === 0) return;
+    const confirmed = window.confirm(`Marquer ${unmarkedStudents.length} élève(s) comme présent(s) maintenant ?`);
+    if (!confirmed) return;
+
+    setBulkError(null);
+    setIsMarkingAll(true);
+    try {
+      const results = await Promise.allSettled(
+        unmarkedStudents.map((student) =>
+          recordManualAttendance.mutateAsync({
+            studentId: student.id,
+            input: { date: today, time: isoTime(new Date()), isLate: false },
+          }),
+        ),
+      );
+      const failedCount = results.filter((r) => r.status === 'rejected').length;
+      if (failedCount > 0) {
+        setBulkError(
+          `${failedCount} pointage(s) sur ${unmarkedStudents.length} ont échoué. Réessaie pour les élèves concernés.`,
+        );
+      }
+    } finally {
+      setIsMarkingAll(false);
     }
   }
 
@@ -63,6 +95,20 @@ export function QuickRollCall() {
       </div>
 
       {!schoolClassId && <p className="text-sm text-zinc-400">Choisis une classe pour faire l&apos;appel.</p>}
+
+      {schoolClassId && unmarkedStudents.length > 0 && (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            disabled={isMarkingAll}
+            onClick={() => void handleMarkAllPresent()}
+            className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            {isMarkingAll ? 'Marquage en cours…' : `Marquer les ${unmarkedStudents.length} restant(s) présent(s)`}
+          </button>
+          {bulkError && <p className="text-xs text-red-600">{bulkError}</p>}
+        </div>
+      )}
 
       {schoolClassId && (
         <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">

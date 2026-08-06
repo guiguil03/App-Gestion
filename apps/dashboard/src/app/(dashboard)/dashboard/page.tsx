@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { CheckCircle2, Clock, Users, XCircle } from 'lucide-react';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { TooltipProps } from 'recharts';
+import type { ClassComparison } from '@/types/dashboard';
 import { KpiCard, KpiCardSkeleton } from '@/components/ui/kpi-card';
 import { cn } from '@/lib/utils';
 import { useAlerts, useClassesComparison, useOverview, useTrend } from '@/lib/hooks/useDashboard';
@@ -15,6 +17,19 @@ const TREND_PERIODS = [
 ] as const;
 
 type TrendPeriod = (typeof TREND_PERIODS)[number]['value'];
+
+function ClassComparisonTooltip({ active, payload }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload as ClassComparison;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
+      <p className="font-medium text-zinc-700">{point.name}</p>
+      <p className="text-zinc-500">
+        {point.presentCount}/{point.totalStudents} présents ({point.rate}%)
+      </p>
+    </div>
+  );
+}
 
 export default function DashboardOverviewPage() {
   const status = useDashboardStream();
@@ -91,17 +106,23 @@ export default function DashboardOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-700 mb-4">Comparaison des classes</h2>
-          <div className="space-y-2">
-            {(classes.data ?? []).map((c) => (
-              <div key={c.schoolClassId} className="flex items-center justify-between text-sm">
-                <span className="text-zinc-700">{c.name}</span>
-                <span className="text-zinc-500">
-                  {c.presentCount}/{c.totalStudents} ({c.rate}%)
-                </span>
-              </div>
-            ))}
-            {classes.data?.length === 0 && <p className="text-sm text-zinc-400">Aucune classe.</p>}
-          </div>
+          {classes.data?.length === 0 ? (
+            <p className="text-sm text-zinc-400">Aucune classe.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(120, (classes.data ?? []).length * 36)}>
+              <BarChart
+                data={[...(classes.data ?? [])].sort((a, b) => b.rate - a.rate)}
+                layout="vertical"
+                margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
+              >
+                <CartesianGrid horizontal={false} stroke="#f1f5f9" />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
+                <Tooltip content={<ClassComparisonTooltip />} cursor={{ fill: '#f8fafc' }} />
+                <Bar dataKey="rate" fill="#10b981" radius={[0, 4, 4, 0]} barSize={16} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">

@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Param, Redirect } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import { S3StorageService } from '@/common/storage/s3-storage.service';
 
@@ -14,6 +15,7 @@ const FILENAME_PATTERN = /^[a-f0-9-]+\.(jpg|png)$/i;
 // appel plutôt que de exposer un lien S3 permanent. Pas d'authentification
 // ici, volontairement : mêmes garanties qu'avant (nom de fichier UUID non
 // devinable), voir StudentPhotoStorageService/SchoolLogoStorageService.
+@SkipThrottle()
 @Controller('media')
 export class MediaController {
   constructor(private readonly storage: S3StorageService) {}

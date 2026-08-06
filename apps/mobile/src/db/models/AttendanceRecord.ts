@@ -34,6 +34,8 @@ export default class AttendanceRecord extends Model {
   // a un périmètre configuré (voir School.geofenceCorners).
   @field('latitude') latitude?: number;
   @field('longitude') longitude?: number;
+  // Renseigné si le serveur a rejeté ce pointage au push — voir schema.ts.
+  @text('rejection_reason') rejectionReason?: string;
 
   @relation('students', 'student_id') student: Relation<Student>;
 }

@@ -22,20 +22,32 @@ export function SyncStatusBadge({ topOffset = 0 }: { topOffset?: number }) {
   const insets = useSafeAreaInsets();
   const { isOnline } = useSyncStatus();
   const [pendingCount, setPendingCount] = useState(0);
+  const [rejectedCount, setRejectedCount] = useState(0);
 
   useEffect(() => {
     if (!database) return;
-    const subscription = database
-      .get<AttendanceRecord>('attendance_records')
-      .query(Q.where('synced_at', null))
+    const records = database.get<AttendanceRecord>('attendance_records');
+    // Un pointage rejeté par le serveur ne sera jamais réessayé
+    // automatiquement (voir services/sync.ts) : compté à part de "en
+    // attente" pour ne pas laisser croire qu'il finira par se synchroniser
+    // tout seul — sans ça, seul Sentry voyait ce rejet, jamais l'utilisateur.
+    const pendingSubscription = records
+      .query(Q.where('synced_at', null), Q.where('rejection_reason', null))
       .observeCount()
       .subscribe(setPendingCount);
-    return () => subscription.unsubscribe();
+    const rejectedSubscription = records
+      .query(Q.where('rejection_reason', Q.notEq(null)))
+      .observeCount()
+      .subscribe(setRejectedCount);
+    return () => {
+      pendingSubscription.unsubscribe();
+      rejectedSubscription.unsubscribe();
+    };
   }, [database]);
 
   const top = insets.top + Spacing.two + topOffset;
 
-  if (!isOnline) {
+  if (!isOnline && rejectedCount === 0) {
     return (
       <ThemedView style={[styles.badge, { top }]}>
         <ThemedText type="smallBold">Hors ligne</ThemedText>
@@ -43,17 +55,25 @@ export function SyncStatusBadge({ topOffset = 0 }: { topOffset?: number }) {
     );
   }
 
-  if (pendingCount > 0) {
-    return (
-      <ThemedView style={[styles.badge, { top }]}>
+  if (rejectedCount === 0 && pendingCount === 0) {
+    return null;
+  }
+
+  return (
+    <ThemedView style={[styles.badge, { top }]}>
+      {!isOnline && <ThemedText type="smallBold">Hors ligne</ThemedText>}
+      {pendingCount > 0 && (
         <ThemedText type="smallBold">
           {pendingCount} pointage{pendingCount > 1 ? 's' : ''} en attente
         </ThemedText>
-      </ThemedView>
-    );
-  }
-
-  return null;
+      )}
+      {rejectedCount > 0 && (
+        <ThemedText type="smallBold" themeColor="danger">
+          {rejectedCount} pointage{rejectedCount > 1 ? 's' : ''} rejeté{rejectedCount > 1 ? 's' : ''} — à corriger manuellement
+        </ThemedText>
+      )}
+    </ThemedView>
+  );
 }
 
 const styles = StyleSheet.create({

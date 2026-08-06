@@ -6,6 +6,7 @@ import { FieldEncryptionService } from '@/common/crypto/field-encryption';
 import { PrismaService } from '@/database/prisma.service';
 import { ABSENCE_MARKED_EVENT, AbsenceMarkedEvent } from '@/modules/absences/events/absence-marked.event';
 import { ATTENDANCE_RECORDED_EVENT, AttendanceRecordedEvent } from '@/modules/attendance/events/attendance-recorded.event';
+import { AuditService } from '@/modules/audit/audit.service';
 import { PushProvider } from '@/modules/notifications/providers/push-provider';
 import { SmsProvider } from '@/modules/notifications/providers/sms-provider';
 
@@ -18,6 +19,7 @@ export class NotificationsService {
     private readonly sms: SmsProvider,
     private readonly push: PushProvider,
     private readonly crypto: FieldEncryptionService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -34,7 +36,7 @@ export class NotificationsService {
     const lateSuffix = event.isLate ? ' (en retard)' : '';
     const message = `Bonjour, votre enfant ${this.fullName(student)} est bien arrivé à l'école ${student.school.name} à ${time}${lateSuffix}.`;
 
-    await this.notifyParents(student.id, message, 'Arrivée');
+    await this.notifyParents(student.id, student.schoolId, message, 'Arrivée');
   }
 
   /**
@@ -48,7 +50,7 @@ export class NotificationsService {
 
     const message = `Bonjour, votre enfant ${this.fullName(student)} est absent aujourd'hui à l'école ${student.school.name}. Contactez l'école si besoin.`;
 
-    await this.notifyParents(student.id, message, 'Absence');
+    await this.notifyParents(student.id, student.schoolId, message, 'Absence');
   }
 
   private async findStudentWithSchool(studentId: string) {
@@ -67,7 +69,7 @@ export class NotificationsService {
    * fiche par fiche exactement comme le SMS, y compris en cas de fratrie où
    * plusieurs fiches pointent vers le même compte.
    */
-  private async notifyParents(studentId: string, message: string, pushTitle: string): Promise<void> {
+  private async notifyParents(studentId: string, schoolId: string, message: string, pushTitle: string): Promise<void> {
     const parentGuardians = await this.prisma.parentGuardian.findMany({
       where: { studentId },
       include: { user: true },
@@ -84,16 +86,50 @@ export class NotificationsService {
     );
 
     await Promise.all([
-      ...smsRecipients.map((parent) =>
-        this.sms.send(this.crypto.decrypt(parent.phoneNumber), message).catch((error: unknown) => {
+      ...smsRecipients.map(async (parent) => {
+        let status: 'SENT' | 'FAILED' = 'FAILED';
+        try {
+          const result = await this.sms.send(this.crypto.decrypt(parent.phoneNumber), message);
+          status = result.status === 'sent' ? 'SENT' : 'FAILED';
+        } catch (error) {
           this.logger.warn(`Échec d'envoi SMS pour le parent ${parent.id}`, error);
-        }),
-      ),
-      ...pushRecipients.map((parent) =>
-        this.push.send(parent.user!.expoPushToken!, pushTitle, message).catch((error: unknown) => {
+        }
+        await this.logNotification(studentId, schoolId, 'SMS', status, pushTitle);
+      }),
+      ...pushRecipients.map(async (parent) => {
+        let status: 'SENT' | 'FAILED' = 'FAILED';
+        try {
+          const result = await this.push.send(parent.user!.expoPushToken!, pushTitle, message);
+          status = result.status === 'sent' ? 'SENT' : 'FAILED';
+        } catch (error) {
           this.logger.warn(`Échec d'envoi push pour le compte ${parent.user!.id}`, error);
-        }),
-      ),
+        }
+        await this.logNotification(studentId, schoolId, 'PUSH', status, pushTitle);
+      }),
     ]);
+  }
+
+  /**
+   * Journalise chaque envoi (réussi ou échoué) via AuditService — sert
+   * d'historique consultable côté parent (`GET /audit-logs/my-notifications`,
+   * voir AuditService.listNotificationsForParent) : avant ça, un échec
+   * n'était visible que dans les logs serveur/Sentry, jamais côté utilisateur.
+   * `kind` (le metadata `title`, "Arrivée"/"Absence") reste volontairement le
+   * seul contenu stocké — pas le texte complet du message envoyé.
+   */
+  private async logNotification(
+    studentId: string,
+    schoolId: string,
+    channel: 'SMS' | 'PUSH',
+    status: 'SENT' | 'FAILED',
+    kind: string,
+  ): Promise<void> {
+    await this.audit.log({
+      schoolId,
+      action: `NOTIFICATION_${channel}_${status}`,
+      targetType: 'Student',
+      targetId: studentId,
+      metadata: { title: kind },
+    });
   }
 }

@@ -13,8 +13,9 @@ function buildDeps() {
   } as any;
   const sms = { send: jest.fn().mockResolvedValue({ status: 'sent-mock' }) } as any;
   const push = { send: jest.fn().mockResolvedValue({ status: 'sent-mock' }) } as any;
-  const service = new NotificationsService(prisma, sms, push, crypto);
-  return { service, prisma, sms, push, crypto };
+  const audit = { log: jest.fn() } as any;
+  const service = new NotificationsService(prisma, sms, push, crypto, audit);
+  return { service, prisma, sms, push, crypto, audit };
 }
 
 describe('NotificationsService.handleAbsenceMarked', () => {
@@ -25,6 +26,7 @@ describe('NotificationsService.handleAbsenceMarked', () => {
       lastName: 'Nkumu',
       middleName: null,
       firstName: 'Grace',
+      schoolId: 'school-1',
       school: { name: 'École Test' },
     });
     prisma.parentGuardian.findMany.mockResolvedValue([
@@ -51,6 +53,7 @@ describe('NotificationsService.handleAbsenceMarked', () => {
       lastName: 'Nkumu',
       middleName: null,
       firstName: 'Grace',
+      schoolId: 'school-1',
       school: { name: 'École Test' },
     });
     prisma.parentGuardian.findMany.mockResolvedValue([
@@ -79,6 +82,80 @@ describe('NotificationsService.handleAbsenceMarked', () => {
   });
 });
 
+describe('NotificationsService — notification history logging', () => {
+  it('logs a SENT audit entry per successful send, scoped to the student and school', async () => {
+    const { service, prisma, sms, audit, crypto } = buildDeps();
+    sms.send.mockResolvedValue({ status: 'sent' });
+    prisma.student.findUnique.mockResolvedValue({
+      id: 'student-1',
+      lastName: 'Nkumu',
+      middleName: null,
+      firstName: 'Grace',
+      schoolId: 'school-1',
+      school: { name: 'École Test' },
+    });
+    prisma.parentGuardian.findMany.mockResolvedValue([
+      { id: 'pg-1', phoneNumber: crypto.encrypt('+243900000001'), notificationChannel: 'SMS', user: null },
+    ]);
+
+    await service.handleAbsenceMarked(new AbsenceMarkedEvent('absence-1', 'student-1', 'school-1', '2026-07-14'));
+
+    expect(audit.log).toHaveBeenCalledWith({
+      schoolId: 'school-1',
+      action: 'NOTIFICATION_SMS_SENT',
+      targetType: 'Student',
+      targetId: 'student-1',
+      metadata: { title: 'Absence' },
+    });
+  });
+
+  it('logs a FAILED status when the provider reports failure without throwing', async () => {
+    const { service, prisma, sms, audit, crypto } = buildDeps();
+    sms.send.mockResolvedValue({ status: 'failed' });
+    prisma.student.findUnique.mockResolvedValue({
+      id: 'student-1',
+      lastName: 'Nkumu',
+      middleName: null,
+      firstName: 'Grace',
+      schoolId: 'school-1',
+      school: { name: 'École Test' },
+    });
+    prisma.parentGuardian.findMany.mockResolvedValue([
+      { id: 'pg-1', phoneNumber: crypto.encrypt('+243900000001'), notificationChannel: 'SMS', user: null },
+    ]);
+
+    await service.handleAbsenceMarked(new AbsenceMarkedEvent('absence-1', 'student-1', 'school-1', '2026-07-14'));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'NOTIFICATION_SMS_FAILED', metadata: { title: 'Absence' } }),
+    );
+  });
+
+  it('logs a FAILED status without throwing when the provider itself throws', async () => {
+    const { service, prisma, push, audit } = buildDeps();
+    push.send.mockRejectedValue(new Error('network down'));
+    prisma.student.findUnique.mockResolvedValue({
+      id: 'student-1',
+      lastName: 'Nkumu',
+      middleName: null,
+      firstName: 'Grace',
+      schoolId: 'school-1',
+      school: { name: 'École Test' },
+    });
+    prisma.parentGuardian.findMany.mockResolvedValue([
+      { id: 'pg-1', phoneNumber: 'enc', notificationChannel: 'PUSH', user: { id: 'user-1', expoPushToken: 'tok' } },
+    ]);
+
+    await expect(
+      service.handleAttendanceRecorded({ studentId: 'student-1', recordedAt: new Date('2026-07-14T07:31:00'), isLate: false } as any),
+    ).resolves.toBeUndefined();
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'NOTIFICATION_PUSH_FAILED', metadata: { title: 'Arrivée' } }),
+    );
+  });
+});
+
 describe('NotificationsService.handleAttendanceRecorded — push', () => {
   it('also sends push to the linked account of a BOTH fiche with a token, in addition to existing SMS behaviour', async () => {
     const { service, prisma, sms, push, crypto } = buildDeps();
@@ -87,6 +164,7 @@ describe('NotificationsService.handleAttendanceRecorded — push', () => {
       lastName: 'Nkumu',
       middleName: null,
       firstName: 'Grace',
+      schoolId: 'school-1',
       school: { name: 'École Test' },
     });
     prisma.parentGuardian.findMany.mockResolvedValue([

@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 
 import { CommonModule } from '@/common/common.module';
@@ -31,6 +32,11 @@ import { SyncModule } from '@/modules/sync/sync.module';
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
+    // Limite générale anti-abus sur toute l'API (indépendante du throttling
+    // spécifique aux tentatives de login, voir login-throttle.service.ts).
+    // /health et /media sont exemptés via @SkipThrottle (Railway ping le
+    // premier en continu, le second est appelé une fois par photo affichée).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     CommonModule,
     PrismaModule,
     HealthModule,
@@ -51,6 +57,9 @@ import { SyncModule } from '@/modules/sync/sync.module';
     AdminModule,
     ReportsModule,
   ],
-  providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
+  providers: [
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

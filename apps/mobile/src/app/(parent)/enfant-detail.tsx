@@ -102,6 +102,7 @@ export default function EnfantDetailScreen() {
                 phoneNumber: student.parents[0].phoneNumber,
                 secondaryPhoneNumber: student.parents[0].secondaryPhoneNumber ?? undefined,
                 address: student.parents[0].address ?? undefined,
+                notificationChannel: student.parents[0].notificationChannel,
               }
             : undefined,
         }}

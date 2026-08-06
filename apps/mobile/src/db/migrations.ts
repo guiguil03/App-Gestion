@@ -85,5 +85,14 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 8,
+      steps: [
+        addColumns({
+          table: 'attendance_records',
+          columns: [{ name: 'rejection_reason', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
   ],
 });

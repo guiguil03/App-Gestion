@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // backend (the sync protocol matches records by `id` in both directions),
 // so no separate `server_id` column is needed anywhere in this schema.
 export const schema = appSchema({
-  version: 7,
+  version: 8,
   tables: [
     tableSchema({
       name: 'schools',
@@ -85,6 +85,13 @@ export const schema = appSchema({
         // l'école a un périmètre configuré (voir School.geofence_corners).
         { name: 'latitude', type: 'number', isOptional: true },
         { name: 'longitude', type: 'number', isOptional: true },
+        // Renseigné si le serveur a rejeté ce pointage au push (hors plage
+        // horaire, hors périmètre...) — jamais synchronisé (`synced_at` reste
+        // null pour toujours), voir services/sync.ts. Distingue localement un
+        // pointage réellement en attente (se synchronisera dès que possible)
+        // d'un pointage définitivement bloqué (nécessite une correction
+        // manuelle) — voir SyncStatusBadge.
+        { name: 'rejection_reason', type: 'string', isOptional: true },
       ],
     }),
     tableSchema({

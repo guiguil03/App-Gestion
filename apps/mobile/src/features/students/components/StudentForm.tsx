@@ -19,8 +19,14 @@ const EMPTY_VALUES: StudentFormValues = {
   sex: 'M',
   dateOfBirth: '',
   schoolClassId: '',
-  parent: { fullName: '', relationship: '', phoneNumber: '', secondaryPhoneNumber: '', address: '' },
+  parent: { fullName: '', relationship: '', phoneNumber: '', secondaryPhoneNumber: '', address: '', notificationChannel: 'BOTH' },
 };
+
+const NOTIFICATION_CHANNEL_OPTIONS: { id: string; label: string }[] = [
+  { id: 'PUSH', label: 'Push' },
+  { id: 'SMS', label: 'SMS' },
+  { id: 'BOTH', label: 'Les deux' },
+];
 
 export function StudentForm({
   initialValues,
@@ -46,6 +52,7 @@ export function StudentForm({
       phoneNumber: initialValues?.parent?.phoneNumber ?? '',
       secondaryPhoneNumber: initialValues?.parent?.secondaryPhoneNumber ?? '',
       address: initialValues?.parent?.address ?? '',
+      notificationChannel: initialValues?.parent?.notificationChannel ?? 'BOTH',
     },
   });
 
@@ -147,6 +154,15 @@ export function StudentForm({
           label="Adresse de résidence"
           value={values.parent?.address ?? ''}
           onChangeText={(v) => setParent('address', v)}
+        />
+
+        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
+          Préférence de notification
+        </ThemedText>
+        <ChipSelector
+          items={NOTIFICATION_CHANNEL_OPTIONS}
+          selectedId={values.parent?.notificationChannel ?? 'BOTH'}
+          onSelect={(id) => setParent('notificationChannel', id as NonNullable<StudentFormValues['parent']>['notificationChannel'])}
         />
       </Section>
 

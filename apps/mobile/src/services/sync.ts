@@ -156,11 +156,16 @@ async function synchronizeDatabase(database: Database): Promise<void> {
       // commentaire de SyncService.push. On ne le marque donc PAS comme
       // synchronisé localement (sinon il disparaît silencieusement sans
       // jamais avoir existé côté serveur), et on le signale à Sentry pour
-      // qu'il reste visible : WatermelonDB considère malgré tout ce cycle de
-      // push terminé (aucune exception levée ici), donc ce pointage ne sera
-      // pas réessayé automatiquement — une correction manuelle depuis le
-      // dashboard (fiche élève / pointage rapide par classe) reste possible.
-      const rejectedIds = new Set(pushResult.rejectedAttendanceRecords.map((r) => r.id));
+      // qu'il reste visible côté développeur : WatermelonDB considère malgré
+      // tout ce cycle de push terminé (aucune exception levée ici), donc ce
+      // pointage ne sera pas réessayé automatiquement — une correction
+      // manuelle depuis le dashboard (fiche élève / pointage rapide par
+      // classe) reste possible. On persiste aussi la raison localement (voir
+      // AttendanceRecord.rejectionReason) pour que SyncStatusBadge puisse la
+      // distinguer d'un pointage simplement pas encore synchronisé — sans
+      // ça, l'utilisateur ne voit jamais ce rejet, seul Sentry le reçoit.
+      const rejectionReasonById = new Map(pushResult.rejectedAttendanceRecords.map((r) => [r.id, r.reason]));
+      const rejectedIds = new Set(rejectionReasonById.keys());
       if (rejectedIds.size > 0) {
         Sentry.captureMessage('Pointages rejetés par le serveur (non synchronisés)', {
           level: 'warning',
@@ -200,9 +205,16 @@ async function synchronizeDatabase(database: Database): Promise<void> {
             .fetch()
         : [];
 
+      const rejectedRecords = rejectedIds.size
+        ? await database.get<AttendanceRecord>('attendance_records').query(Q.where('id', Q.oneOf([...rejectedIds]))).fetch()
+        : [];
+
       await database.batch(
         ...records.map((record) => record.prepareUpdate((r) => { r.syncedAt = syncedAt; })),
         ...sessions.map((session) => session.prepareUpdate((s) => { s.syncedAt = syncedAt; })),
+        ...rejectedRecords.map((record) =>
+          record.prepareUpdate((r) => { r.rejectionReason = rejectionReasonById.get(record.id) ?? 'Rejeté par le serveur'; }),
+        ),
       );
     },
   });

@@ -29,4 +29,10 @@ export class AuditController {
       limit: limit ? Number(limit) : undefined,
     });
   }
+
+  @Get('my-notifications')
+  @Roles('PARENT')
+  myNotifications(@Query('limit') limit?: string) {
+    return this.auditService.listNotificationsForParent(this.tenant.user.userId, limit ? Number(limit) : undefined);
+  }
 }
