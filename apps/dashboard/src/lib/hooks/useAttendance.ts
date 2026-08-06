@@ -28,3 +28,15 @@ export function useRecordManualAttendance() {
     },
   });
 }
+
+export function useDeleteAttendanceRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => attendanceApi.removeRecord(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['absences'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+}

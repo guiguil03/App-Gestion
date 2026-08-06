@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import type { AttendanceHistoryEntry, StudentAttendanceSummary } from '@/types/reports';
+import type { PresenceRecord } from '@/types/attendance';
 
 const COLUMNS = ['Élève', 'Classe', 'Présences', 'Retards', 'Absences justifiées', 'Absences non justifiées'] as const;
 const HISTORY_COLUMNS = ['Date', 'Élève', 'Classe', 'Statut', 'Heure', 'Motif'] as const;
@@ -83,6 +84,44 @@ export function exportAttendanceHistoryExcel(entries: AttendanceHistoryEntry[], 
   worksheet['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 24 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Historique');
+  XLSX.writeFile(workbook, filename);
+}
+
+const PRESENCE_COLUMNS = ['Élève', 'Classe', 'Checkpoint', 'Heure', 'Statut', 'Origine'] as const;
+
+function toPresenceRows(rows: PresenceRecord[]): (string | number)[][] {
+  return rows.map((record) => [
+    [record.student.lastName, record.student.middleName, record.student.firstName].filter(Boolean).join(' '),
+    `${record.student.schoolClass.name} — ${record.student.schoolClass.promotion}`,
+    record.checkpoint === 'PORTAIL' ? 'Portail' : 'Salle de classe',
+    new Date(record.recordedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    record.isLate ? 'En retard' : 'À l’heure',
+    record.isManual ? 'Manuel' : 'Scan',
+  ]);
+}
+
+/** Liste des pointages bruts d'un jour (page Présences) — contrairement à
+ * `exportAttendanceHistoryPdf/Excel` (un statut agrégé par élève/jour via
+ * `/reports/history`), une ligne par pointage brut, avec checkpoint/origine. */
+export function exportPresenceListPdf(rows: PresenceRecord[], title: string, filename: string): void {
+  const doc = new jsPDF({ orientation: 'landscape' });
+  doc.setFontSize(14);
+  doc.text(title, 14, 16);
+  autoTable(doc, {
+    head: [[...PRESENCE_COLUMNS]],
+    body: toPresenceRows(rows),
+    startY: 22,
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [15, 122, 92] },
+  });
+  doc.save(filename);
+}
+
+export function exportPresenceListExcel(rows: PresenceRecord[], filename: string): void {
+  const worksheet = XLSX.utils.aoa_to_sheet([[...PRESENCE_COLUMNS], ...toPresenceRows(rows)]);
+  worksheet['!cols'] = [{ wch: 28 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 10 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Présences');
   XLSX.writeFile(workbook, filename);
 }
 

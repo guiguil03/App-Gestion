@@ -163,6 +163,39 @@ export class AbsencesService {
     return alerts.sort((a, b) => b.consecutiveAbsences - a.consecutiveAbsences);
   }
 
+  /**
+   * Déclare une absence "à l'avance" (ex. un parent prévient par téléphone
+   * qu'un élève sera absent) plutôt que d'attendre la détection automatique
+   * par `AbsenceDetectionJob` en fin de créneau. Idempotent via `upsert` sur
+   * `Absence.@@unique([studentId, date])` : si le cron a déjà marqué
+   * l'absence entre-temps (ou si on rappelle cette méthode), on met juste à
+   * jour `justified`/`justificationReason` plutôt que de planter — et si
+   * l'élève pointe finalement ce jour-là, `AttendanceService` supprime cette
+   * absence comme n'importe quelle autre (voir son commentaire sur
+   * `absence.deleteMany`). N'émet volontairement PAS `ABSENCE_MARKED_EVENT` :
+   * le parent est par hypothèse déjà informé (c'est lui qui a prévenu),
+   * inutile de lui renvoyer un SMS/push "votre enfant est absent".
+   */
+  async create(
+    schoolId: string,
+    dto: { studentId: string; date: string; justified?: boolean; justificationReason?: string },
+  ) {
+    const student = await this.prisma.student.findFirst({
+      where: { id: dto.studentId, schoolId, deletedAt: null },
+    });
+    if (!student) {
+      throw new ForbiddenException("Élève hors du périmètre de l'école");
+    }
+
+    const absence = await this.prisma.absence.upsert({
+      where: { studentId_date: { studentId: dto.studentId, date: dto.date } },
+      create: { studentId: dto.studentId, date: dto.date, justified: dto.justified, justificationReason: dto.justificationReason },
+      update: { justified: dto.justified, justificationReason: dto.justificationReason },
+    });
+    this.logger.log(`Absence ${absence.id} déclarée à l'avance pour l'élève ${dto.studentId} (${dto.date})`);
+    return absence;
+  }
+
   async list(schoolId: string, schoolClassId?: string, studentId?: string) {
     return this.prisma.absence.findMany({
       where: { studentId, student: { schoolId, schoolClassId } },

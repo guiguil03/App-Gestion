@@ -11,7 +11,7 @@ function buildPrisma(overrides: Record<string, any> = {}) {
       findMany: jest.fn().mockResolvedValue([]),
       ...overrides.schoolClosureDate,
     },
-    student: { findMany: jest.fn().mockResolvedValue([]), ...overrides.student },
+    student: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn(), ...overrides.student },
     attendanceRecord: { findMany: jest.fn().mockResolvedValue([]), ...overrides.attendanceRecord },
     absence: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -375,5 +375,65 @@ describe('AbsencesService.listPaginated', () => {
         },
       }),
     );
+  });
+});
+
+describe('AbsencesService.create', () => {
+  it('rejects a student outside the school', async () => {
+    const prisma = buildPrisma({ student: { findFirst: jest.fn().mockResolvedValue(null) } });
+    const events = { emit: jest.fn() } as any;
+    const service = new AbsencesService(prisma, events);
+
+    await expect(
+      service.create('school-1', { studentId: 'student-1', date: '2026-08-10' }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.absence.upsert).not.toHaveBeenCalled();
+  });
+
+  it('creates an unjustified-by-default absence for a future date, scoped by studentId+date', async () => {
+    const prisma = buildPrisma({ student: { findFirst: jest.fn().mockResolvedValue({ id: 'student-1' }) } });
+    prisma.absence.upsert.mockResolvedValue({ id: 'absence-1' });
+    const events = { emit: jest.fn() } as any;
+    const service = new AbsencesService(prisma, events);
+
+    await service.create('school-1', { studentId: 'student-1', date: '2026-08-10' });
+
+    expect(prisma.absence.upsert).toHaveBeenCalledWith({
+      where: { studentId_date: { studentId: 'student-1', date: '2026-08-10' } },
+      create: { studentId: 'student-1', date: '2026-08-10', justified: undefined, justificationReason: undefined },
+      update: { justified: undefined, justificationReason: undefined },
+    });
+  });
+
+  it('passes through justified/justificationReason when provided', async () => {
+    const prisma = buildPrisma({ student: { findFirst: jest.fn().mockResolvedValue({ id: 'student-1' }) } });
+    prisma.absence.upsert.mockResolvedValue({ id: 'absence-1' });
+    const events = { emit: jest.fn() } as any;
+    const service = new AbsencesService(prisma, events);
+
+    await service.create('school-1', {
+      studentId: 'student-1',
+      date: '2026-08-10',
+      justified: true,
+      justificationReason: 'Rendez-vous médical',
+    });
+
+    expect(prisma.absence.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ justified: true, justificationReason: 'Rendez-vous médical' }),
+        update: expect.objectContaining({ justified: true, justificationReason: 'Rendez-vous médical' }),
+      }),
+    );
+  });
+
+  it('does not emit ABSENCE_MARKED_EVENT — the parent is assumed already informed', async () => {
+    const prisma = buildPrisma({ student: { findFirst: jest.fn().mockResolvedValue({ id: 'student-1' }) } });
+    prisma.absence.upsert.mockResolvedValue({ id: 'absence-1' });
+    const events = { emit: jest.fn() } as any;
+    const service = new AbsencesService(prisma, events);
+
+    await service.create('school-1', { studentId: 'student-1', date: '2026-08-10' });
+
+    expect(events.emit).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Clock, Smartphone, QrCode } from 'lucide-react';
+import { CheckCircle2, Clock, Download, FileSpreadsheet, QrCode, Smartphone, Trash2 } from 'lucide-react';
 import { SearchInput } from '@/components/ui/search-input';
 import { TableRowsSkeleton } from '@/components/ui/skeleton';
+import { getErrorMessage } from '@/lib/api/errors';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { usePresenceList } from '@/lib/hooks/useAttendance';
+import { useDeleteAttendanceRecord, usePresenceList } from '@/lib/hooks/useAttendance';
+import { exportPresenceListExcel, exportPresenceListPdf } from '@/lib/reports/export';
 import { AddPresencePanel } from './_components/add-presence-panel';
 
 function todayKey(): string {
@@ -19,6 +21,8 @@ export default function PresencesPage() {
   const [classFilter, setClassFilter] = useState('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
 
   const classes = useClasses();
   const presences = usePresenceList({
@@ -36,6 +40,23 @@ export default function PresencesPage() {
     { date, schoolClassId: classFilter },
     { enabled: !!classFilter },
   );
+  const deleteRecord = useDeleteAttendanceRecord();
+
+  const exportTitle = `Présences — ${selectedClass?.name ?? 'Toutes les classes'} — ${date}`;
+  const exportFilenameBase = `presences-${classFilter ? `${selectedClass?.name ?? classFilter}-` : ''}${date}`;
+
+  async function handleDelete(recordId: string) {
+    if (!window.confirm('Supprimer ce pointage manuel ? Cette action est irréversible.')) return;
+    setRowError(null);
+    setPendingDeleteId(recordId);
+    try {
+      await deleteRecord.mutateAsync(recordId);
+    } catch (error) {
+      setRowError({ id: recordId, message: getErrorMessage(error, 'Impossible de supprimer ce pointage. Réessaie.') });
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -61,6 +82,22 @@ export default function PresencesPage() {
             ))}
           </select>
           <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un élève…" />
+          <button
+            type="button"
+            disabled={rows.length === 0}
+            onClick={() => exportPresenceListPdf(rows, exportTitle, `${exportFilenameBase}.pdf`)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+          >
+            <Download size={14} /> PDF
+          </button>
+          <button
+            type="button"
+            disabled={rows.length === 0}
+            onClick={() => exportPresenceListExcel(rows, `${exportFilenameBase}.xlsx`)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+          >
+            <FileSpreadsheet size={14} /> Excel
+          </button>
         </div>
       </div>
 
@@ -100,10 +137,11 @@ export default function PresencesPage() {
               <th className="p-3">Heure</th>
               <th className="p-3">Statut</th>
               <th className="p-3">Origine</th>
+              <th className="p-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {presences.isLoading && <TableRowsSkeleton rows={6} cols={6} />}
+            {presences.isLoading && <TableRowsSkeleton rows={6} cols={7} />}
             {!presences.isLoading &&
               rows.map((record) => (
                 <tr key={record.id}>
@@ -130,11 +168,25 @@ export default function PresencesPage() {
                       {record.isManual ? 'Manuel' : 'Scan'}
                     </span>
                   </td>
+                  <td className="p-3 text-right">
+                    {record.isManual && (
+                      <button
+                        type="button"
+                        disabled={pendingDeleteId === record.id}
+                        onClick={() => void handleDelete(record.id)}
+                        title="Supprimer ce pointage manuel erroné"
+                        className="inline-flex items-center rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    {rowError?.id === record.id && <p className="mt-1 text-xs text-red-600">{rowError.message}</p>}
+                  </td>
                 </tr>
               ))}
             {!presences.isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-4 text-sm text-zinc-400">
+                <td colSpan={7} className="p-4 text-sm text-zinc-400">
                   Aucun pointage pour cette journée.
                 </td>
               </tr>

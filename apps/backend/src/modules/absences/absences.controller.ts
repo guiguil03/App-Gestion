@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -8,6 +8,7 @@ import { TenantContext } from '@/common/tenant/tenant-context';
 import { AuditService } from '@/modules/audit/audit.service';
 import type { AuthenticatedUser } from '@/modules/auth/types';
 import { AbsencesService } from '@/modules/absences/absences.service';
+import { CreateAbsenceDto } from '@/modules/absences/dto/create-absence.dto';
 import { JustifyAbsenceDto } from '@/modules/absences/dto/justify-absence.dto';
 import { JustifyAbsencesBulkDto } from '@/modules/absences/dto/justify-absences-bulk.dto';
 
@@ -43,6 +44,25 @@ export class AbsencesController {
       page: Math.max(1, Number(page) || 1),
       pageSize: Math.min(100, Math.max(1, Number(pageSize) || 25)),
     });
+  }
+
+  // Déclaration à l'avance (ex. parent qui prévient par téléphone) — voir le
+  // commentaire de AbsencesService.create.
+  @Post()
+  @Roles('DIRECTION', 'ADMIN')
+  async create(@Body() dto: CreateAbsenceDto, @CurrentUser() user: AuthenticatedUser) {
+    const absence = await this.absencesService.create(this.tenant.schoolId, dto);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'absences.declare',
+      targetType: 'student',
+      targetId: dto.studentId,
+      metadata: { date: dto.date, justified: dto.justified ?? false },
+    });
+    return absence;
   }
 
   @Patch(':absenceId/justify')

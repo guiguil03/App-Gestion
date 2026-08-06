@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -58,5 +58,25 @@ export class AttendanceController {
       metadata: { date: dto.date, time: dto.time, isLate: dto.isLate },
     });
     return result;
+  }
+
+  // Correction d'une saisie manuelle erronée depuis la page Présences — voir
+  // le commentaire de AttendanceService.remove pour la restriction aux
+  // pointages manuels.
+  @Delete(':id')
+  @Roles('DIRECTION', 'ADMIN')
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const { studentId } = await this.attendanceService.remove(id, this.tenant.schoolId);
+    await this.audit.log({
+      schoolId: this.tenant.schoolId,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      action: 'attendance.manual_delete',
+      targetType: 'student',
+      targetId: studentId,
+      metadata: { attendanceRecordId: id },
+    });
+    return { success: true };
   }
 }

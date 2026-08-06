@@ -12,6 +12,8 @@ function buildDeps() {
     attendanceRecord: {
       upsert: jest.fn().mockResolvedValue({ id: 'record-1' }),
       create: jest.fn().mockResolvedValue({ id: 'record-manual-1' }),
+      findFirst: jest.fn(),
+      delete: jest.fn(),
     },
     absence: { deleteMany: jest.fn() },
   } as any;
@@ -196,5 +198,38 @@ describe('AttendanceService.recordManual', () => {
       'attendance.recorded',
       expect.objectContaining({ studentId: 'student-1', schoolId: 'school-1', isLate: false }),
     );
+  });
+});
+
+describe('AttendanceService.remove', () => {
+  it('deletes a manual attendance record scoped to the school and returns its studentId', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue({ id: 'record-1', studentId: 'student-1', isManual: true });
+
+    const result = await service.remove('record-1', 'school-1');
+
+    expect(prisma.attendanceRecord.findFirst).toHaveBeenCalledWith({
+      where: { id: 'record-1', student: { schoolId: 'school-1' } },
+    });
+    expect(prisma.attendanceRecord.delete).toHaveBeenCalledWith({ where: { id: 'record-1' } });
+    expect(result).toEqual({ studentId: 'student-1' });
+  });
+
+  it('throws NotFoundException when the record does not exist or belongs to another school', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue(null);
+
+    await expect(service.remove('record-1', 'school-1')).rejects.toThrow('Pointage introuvable');
+    expect(prisma.attendanceRecord.delete).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete a real scan (isManual: false), only manual entries can be removed', async () => {
+    const { service, prisma } = buildDeps();
+    prisma.attendanceRecord.findFirst.mockResolvedValue({ id: 'record-1', studentId: 'student-1', isManual: false });
+
+    await expect(service.remove('record-1', 'school-1')).rejects.toThrow(
+      'Seul un pointage saisi manuellement peut être supprimé',
+    );
+    expect(prisma.attendanceRecord.delete).not.toHaveBeenCalled();
   });
 });

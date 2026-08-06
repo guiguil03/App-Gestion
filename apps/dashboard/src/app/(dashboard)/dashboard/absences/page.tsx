@@ -8,6 +8,7 @@ import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useAbsencesPaginated, useJustifyAbsence, useJustifyAbsencesBulk } from '@/lib/hooks/useAbsences';
+import { DeclareAbsencePanel } from './_components/declare-absence-panel';
 
 const PAGE_SIZE = 25;
 
@@ -85,6 +86,8 @@ export default function AbsencesPage() {
         <h1 className="text-xl font-bold text-zinc-900">Absences</h1>
         <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un élève…" />
       </div>
+
+      <DeclareAbsencePanel />
 
       <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
         {TABS.map((t) => (

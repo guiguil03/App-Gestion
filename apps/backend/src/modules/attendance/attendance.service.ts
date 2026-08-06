@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Checkpoint, AttendanceDirection, Prisma } from '@prisma/client';
 import type { AttendanceRecord } from '@prisma/client';
@@ -199,6 +199,32 @@ export class AttendanceService {
     );
 
     return record;
+  }
+
+  /**
+   * Supprime un pointage saisi manuellement — corrige une erreur de saisie
+   * depuis la page Présences du dashboard (élève sélectionné par erreur,
+   * mauvaise heure...). Volontairement restreint aux pointages `isManual`
+   * (jamais un vrai scan carte/session) : supprimer un scan effacerait une
+   * preuve de présence réelle, alors qu'une saisie manuelle erronée peut être
+   * refaite correctement juste après (voir AddPresencePanel côté dashboard).
+   * Ne re-déclenche pas AbsencesService.detectAbsences ici : le prochain
+   * passage du cron (toutes les 5 min) marquera l'absence si l'élève n'a
+   * effectivement plus aucun pointage ce jour-là — idempotent par construction.
+   */
+  async remove(id: string, schoolId: string): Promise<{ studentId: string }> {
+    const record = await this.prisma.attendanceRecord.findFirst({ where: { id, student: { schoolId } } });
+    if (!record) {
+      throw new NotFoundException('Pointage introuvable');
+    }
+    if (!record.isManual) {
+      throw new ForbiddenException('Seul un pointage saisi manuellement peut être supprimé');
+    }
+
+    await this.prisma.attendanceRecord.delete({ where: { id } });
+    this.logger.log(`Pointage manuel ${id} supprimé pour l'élève ${record.studentId}`);
+
+    return { studentId: record.studentId };
   }
 
   /**
