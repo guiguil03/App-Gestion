@@ -14,4 +14,8 @@ export const authApi = {
   changePassword: async (currentPassword: string, newPassword: string) => {
     await apiClient.post('/auth/change-password', { currentPassword, newPassword });
   },
+  updateNotificationEmail: async (email: string) => {
+    const { data } = await apiClient.post<{ email: string }>('/auth/notification-email', { email });
+    return data;
+  },
 };

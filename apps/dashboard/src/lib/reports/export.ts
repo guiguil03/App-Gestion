@@ -125,6 +125,59 @@ export function exportPresenceListExcel(rows: PresenceRecord[], filename: string
   XLSX.writeFile(workbook, filename);
 }
 
+export type EscalationLetterInput = {
+  schoolName: string;
+  studentFullName: string;
+  schoolClassName: string;
+  reason: 'retards' | 'absences';
+  detail: string; // ex. "6 retards sur les 30 derniers jours" / "5 jours d'absence consécutifs"
+};
+
+/**
+ * Brouillon de courrier de convocation, généré côté client (jamais envoyé
+ * automatiquement) — pour un élève avec des retards répétés ou des absences
+ * consécutives (voir les alertes du dashboard). Direction télécharge,
+ * relit/adapte si besoin, imprime ou envoie elle-même : le contenu générique
+ * ci-dessous n'est délibérément pas personnalisé au-delà des faits, une
+ * lettre de convocation étant un document à connotation administrative que
+ * l'établissement doit rester libre d'ajuster avant envoi.
+ */
+export function exportEscalationLetterPdf(input: EscalationLetterInput, filename: string): void {
+  const doc = new jsPDF();
+  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const subject =
+    input.reason === 'retards' ? 'Retards répétés' : 'Absences consécutives non justifiées';
+  const body =
+    input.reason === 'retards'
+      ? `Nous constatons que votre enfant, ${input.studentFullName} (classe ${input.schoolClassName}), a été enregistré en retard à plusieurs reprises récemment (${input.detail}).`
+      : `Nous constatons que votre enfant, ${input.studentFullName} (classe ${input.schoolClassName}), a été absent plusieurs jours consécutifs (${input.detail}).`;
+
+  doc.setFontSize(12);
+  doc.text(input.schoolName, 20, 20);
+  doc.setFontSize(10);
+  doc.text(today, 190, 20, { align: 'right' });
+
+  doc.setFontSize(11);
+  doc.text('Aux parents ou tuteurs de :', 20, 40);
+  doc.setFont('helvetica', 'bold');
+  doc.text(input.studentFullName, 20, 47);
+  doc.setFont('helvetica', 'normal');
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Objet : ${subject}`, 20, 62);
+  doc.setFont('helvetica', 'normal');
+
+  doc.setFontSize(11);
+  const lines = doc.splitTextToSize(
+    `Madame, Monsieur,\n\n${body} Nous vous invitons à prendre contact avec l'établissement dans les meilleurs délais afin d'échanger à ce sujet.\n\nNous restons à votre disposition pour tout complément d'information.\n\nCordialement,`,
+    170,
+  );
+  doc.text(lines, 20, 78);
+
+  doc.save(filename);
+}
+
 export type StudentDossierInfo = {
   lastName: string;
   middleName: string | null;

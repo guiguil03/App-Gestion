@@ -79,6 +79,7 @@ model School {
   users              User[]
   attendanceSessions AttendanceSession[]
   closureDates       SchoolClosureDate[]
+  events             SchoolEvent[]
 
   @@map("schools")
 }
@@ -98,6 +99,25 @@ model SchoolClosureDate {
   @@unique([schoolId, date])
   @@index([schoolId])
   @@map("school_closure_dates")
+}
+
+// Événement de calendrier purement informatif (sortie scolaire, réunion,
+// fête...) — contrairement à SchoolClosureDate, n'a aucun effet sur la
+// détection d'absence (plusieurs événements possibles le même jour, pas de
+// contrainte d'unicité par date).
+model SchoolEvent {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  date        String // "YYYY-MM-DD", voir date-key.ts
+  title       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId])
+  @@index([schoolId, date])
+  @@map("school_events")
 }
 
 model SchoolClass {
@@ -311,6 +331,10 @@ model User {
   // Jeton Expo Push (device), renseigné dès l'app ouverte et connectée —
   // permet l'envoi de notifications push (arrivée, absence).
   expoPushToken String?   @map("expo_push_token")
+  // Renseigné volontairement par un compte DIRECTION/ADMIN (dashboard →
+  // Profil) pour recevoir le rapport hebdomadaire automatique — voir
+  // WeeklyReportJob. `null` = pas d'envoi pour ce compte.
+  email         String?
   // Désactivation soft d'un compte staff (ENSEIGNANT/SURVEILLANT) par la
   // Direction — rejeté par JwtAuthGuard dès la prochaine requête, pas
   // seulement au prochain login.

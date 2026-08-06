@@ -137,3 +137,16 @@ describe('AuthService.login — brute-force throttle', () => {
     expect(() => loginThrottle.assertNotLocked('direction1')).not.toThrow();
   });
 });
+
+describe('AuthService.updateNotificationEmail', () => {
+  it('persists the email for the weekly report job to pick up', async () => {
+    const { service, prisma } = buildDeps({
+      user: { update: jest.fn().mockResolvedValue({ id: 'user-1', email: 'direction@ecole.example' }) },
+    });
+
+    const result = await service.updateNotificationEmail('user-1', 'direction@ecole.example');
+
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { email: 'direction@ecole.example' } });
+    expect(result).toEqual({ email: 'direction@ecole.example' });
+  });
+});

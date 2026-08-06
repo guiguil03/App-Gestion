@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -20,12 +21,14 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { TenantContext } from '@/common/tenant/tenant-context';
 import { detectImageExtension } from '@/modules/students/image-signature';
 import { CreateClosureDateDto } from '@/modules/schools/dto/create-closure-date.dto';
+import { CreateSchoolEventDto } from '@/modules/schools/dto/create-school-event.dto';
 import { UpdateAttendanceSettingsDto } from '@/modules/schools/dto/update-attendance-settings.dto';
 import { UpdateSchoolProfileDto } from '@/modules/schools/dto/update-school-profile.dto';
 import { SchoolLogoStorageService } from '@/modules/schools/school-logo-storage.service';
 import { SchoolsService } from '@/modules/schools/schools.service';
 
 const ALLOWED_LOGO_MIMETYPES = new Set(['image/jpeg', 'image/png']);
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 @Controller('schools')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -101,5 +104,26 @@ export class SchoolsController {
   @Roles('DIRECTION', 'ADMIN')
   removeClosureDate(@Param('closureDateId') closureDateId: string) {
     return this.schoolsService.removeClosureDate(this.tenant.schoolId, closureDateId);
+  }
+
+  @Get('events')
+  @Roles('DIRECTION', 'ADMIN')
+  listEvents(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
+    if (!DATE_PATTERN.test(startDate) || !DATE_PATTERN.test(endDate)) {
+      throw new BadRequestException('startDate et endDate sont requis au format YYYY-MM-DD');
+    }
+    return this.schoolsService.listEvents(this.tenant.schoolId, startDate, endDate);
+  }
+
+  @Post('events')
+  @Roles('DIRECTION', 'ADMIN')
+  addEvent(@Body() dto: CreateSchoolEventDto) {
+    return this.schoolsService.addEvent(this.tenant.schoolId, dto);
+  }
+
+  @Delete('events/:eventId')
+  @Roles('DIRECTION', 'ADMIN')
+  removeEvent(@Param('eventId') eventId: string) {
+    return this.schoolsService.removeEvent(this.tenant.schoolId, eventId);
   }
 }

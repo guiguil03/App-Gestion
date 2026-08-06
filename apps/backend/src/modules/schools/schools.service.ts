@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '@/database/prisma.service';
 import type { CreateClosureDateDto } from '@/modules/schools/dto/create-closure-date.dto';
+import type { CreateSchoolEventDto } from '@/modules/schools/dto/create-school-event.dto';
 import type { UpdateAttendanceSettingsDto } from '@/modules/schools/dto/update-attendance-settings.dto';
 import type { UpdateSchoolProfileDto } from '@/modules/schools/dto/update-school-profile.dto';
 
@@ -101,5 +102,30 @@ export class SchoolsService {
   async removeClosureDate(schoolId: string, closureDateId: string): Promise<void> {
     const result = await this.prisma.schoolClosureDate.deleteMany({ where: { id: closureDateId, schoolId } });
     if (result.count === 0) throw new NotFoundException('Date de fermeture introuvable');
+  }
+
+  /**
+   * Événements de calendrier (sorties, réunions...) — purement informatif,
+   * contrairement à SchoolClosureDate n'a aucun effet sur la détection
+   * d'absence. `startDate`/`endDate` bornent la vue calendrier affichée
+   * (typiquement un mois) plutôt que de renvoyer tout l'historique.
+   */
+  async listEvents(schoolId: string, startDate: string, endDate: string) {
+    return this.prisma.schoolEvent.findMany({
+      where: { schoolId, date: { gte: startDate, lte: endDate } },
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  async addEvent(schoolId: string, dto: CreateSchoolEventDto) {
+    await this.findByIdOrThrow(schoolId);
+    return this.prisma.schoolEvent.create({
+      data: { schoolId, date: dto.date, title: dto.title, description: dto.description },
+    });
+  }
+
+  async removeEvent(schoolId: string, eventId: string): Promise<void> {
+    const result = await this.prisma.schoolEvent.deleteMany({ where: { id: eventId, schoolId } });
+    if (result.count === 0) throw new NotFoundException('Événement introuvable');
   }
 }

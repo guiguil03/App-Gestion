@@ -17,3 +17,18 @@ export type SchoolClosureDate = {
   date: string; // "YYYY-MM-DD"
   label: string | null;
 };
+
+export type SchoolEvent = {
+  id: string;
+  schoolId: string;
+  date: string; // "YYYY-MM-DD"
+  title: string;
+  description: string | null;
+  createdAt: string;
+};
+
+export type CreateSchoolEventInput = {
+  date: string;
+  title: string;
+  description?: string;
+};

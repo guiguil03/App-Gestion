@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
+import { GlobalSearch } from '@/components/layout/global-search';
 import { Sidebar } from '@/components/layout/sidebar';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -31,7 +32,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
-      <main className="p-4 sm:p-6 lg:ml-60 lg:p-8">{children}</main>
+      <div className="lg:ml-60">
+        <div className="sticky top-0 z-20 hidden border-b border-zinc-100 bg-white/80 px-6 py-2.5 backdrop-blur lg:block">
+          <GlobalSearch />
+        </div>
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }

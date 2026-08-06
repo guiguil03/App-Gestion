@@ -123,6 +123,14 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: userId }, data: { expoPushToken } });
   }
 
+  // Email volontaire pour recevoir le rapport hebdomadaire automatique — voir
+  // WeeklyReportJob. Aucun rôle vérifié ici (déjà fait par le controller) :
+  // le champ existe pour tout compte, seul WeeklyReportJob le filtre par rôle.
+  async updateNotificationEmail(userId: string, email: string): Promise<{ email: string }> {
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { email } });
+    return { email: user.email! };
+  }
+
   private issueTokenPair(subject: TokenSubject): LoginResult {
     return {
       accessToken: this.jwtService.sign({ ...subject, type: 'access' }, { expiresIn: '15m' }),

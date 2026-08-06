@@ -21,6 +21,7 @@ import { MediaModule } from '@/modules/media/media.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
 import { SchoolsModule } from '@/modules/schools/schools.module';
+import { SearchModule } from '@/modules/search/search.module';
 import { SigningKeysModule } from '@/modules/signing-keys/signing-keys.module';
 import { StaffModule } from '@/modules/staff/staff.module';
 import { StudentsModule } from '@/modules/students/students.module';
@@ -56,6 +57,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     DashboardModule,
     AdminModule,
     ReportsModule,
+    SearchModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: SentryGlobalFilter },

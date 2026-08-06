@@ -14,7 +14,9 @@ import { exportStudentDossierExcel, exportStudentDossierPdf } from '@/lib/report
 import { useStudentAbsences, useJustifyAbsence } from '@/lib/hooks/useAbsences';
 import { useRecordManualAttendance } from '@/lib/hooks/useAttendance';
 import { useCards, useIssueCard, useRevokeCard } from '@/lib/hooks/useCards';
+import { useAttendanceHistory } from '@/lib/hooks/useReports';
 import { useProvisionParentAccount, useProvisionStudentAccount, useRemoveStudent, useStudent } from '@/lib/hooks/useStudents';
+import { AttendanceTrendChart } from './_components/attendance-trend-chart';
 
 type ProvisionedCredentials = { label: string; username: string; password: string | null };
 
@@ -32,6 +34,11 @@ export default function StudentDetailPage() {
   const student = useStudent(id ?? null);
   const cards = useCards();
   const absences = useStudentAbsences(id ?? null);
+  const attendanceHistory = useAttendanceHistory({
+    studentId: id,
+    startDate: isoDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)),
+    endDate: isoDate(new Date()),
+  });
   const issueCard = useIssueCard();
   const revokeCard = useRevokeCard();
   const provisionStudentAccount = useProvisionStudentAccount();
@@ -317,6 +324,15 @@ export default function StudentDetailPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h2 className="text-sm font-semibold text-zinc-700 mb-4">Tendance de présence (12 dernières semaines)</h2>
+        {attendanceHistory.isLoading ? (
+          <p className="text-sm text-zinc-400">Chargement…</p>
+        ) : (
+          <AttendanceTrendChart entries={attendanceHistory.data ?? []} />
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">

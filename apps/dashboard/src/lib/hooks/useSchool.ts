@@ -40,3 +40,26 @@ export function useRemoveClosureDate() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['school', 'closure-dates'] }),
   });
 }
+
+export function useSchoolEvents(startDate: string, endDate: string) {
+  return useQuery({
+    queryKey: ['school', 'events', startDate, endDate],
+    queryFn: () => schoolApi.listEvents(startDate, endDate),
+  });
+}
+
+export function useAddSchoolEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schoolApi.addEvent,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['school', 'events'] }),
+  });
+}
+
+export function useRemoveSchoolEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schoolApi.removeEvent,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['school', 'events'] }),
+  });
+}

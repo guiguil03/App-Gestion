@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Clock, Users, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Users, XCircle } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { TooltipProps } from 'recharts';
 import type { ClassComparison } from '@/types/dashboard';
 import { KpiCard, KpiCardSkeleton } from '@/components/ui/kpi-card';
 import { cn } from '@/lib/utils';
 import { useAlerts, useClassesComparison, useOverview, useTrend } from '@/lib/hooks/useDashboard';
+import { useSchoolProfile } from '@/lib/hooks/useSchool';
 import { useDashboardStream } from '@/lib/realtime/useDashboardStream';
+import { exportEscalationLetterPdf } from '@/lib/reports/export';
 import { QuickRollCall } from './_components/quick-roll-call';
 
 const TREND_PERIODS = [
@@ -38,6 +40,37 @@ export default function DashboardOverviewPage() {
   const trend = useTrend(trendPeriod);
   const classes = useClassesComparison();
   const alerts = useAlerts();
+  const school = useSchoolProfile();
+
+  function handleGenerateLatenessLetter(s: { firstName: string; lastName: string; lateCount: number }) {
+    exportEscalationLetterPdf(
+      {
+        schoolName: school.data?.name ?? '',
+        studentFullName: `${s.firstName} ${s.lastName}`,
+        schoolClassName: '',
+        reason: 'retards',
+        detail: `${s.lateCount} retard${s.lateCount > 1 ? 's' : ''} sur les 30 derniers jours`,
+      },
+      `courrier-retards-${s.lastName}.pdf`,
+    );
+  }
+
+  function handleGenerateAbsenceLetter(s: {
+    studentName: string;
+    schoolClassName: string;
+    consecutiveAbsences: number;
+  }) {
+    exportEscalationLetterPdf(
+      {
+        schoolName: school.data?.name ?? '',
+        studentFullName: s.studentName,
+        schoolClassName: s.schoolClassName,
+        reason: 'absences',
+        detail: `${s.consecutiveAbsences} jour${s.consecutiveAbsences > 1 ? 's' : ''} d'absence consécutifs`,
+      },
+      `courrier-absences-${s.studentName.replace(/\s+/g, '-')}.pdf`,
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,18 +173,38 @@ export default function DashboardOverviewPage() {
             <div>
               <p className="text-xs font-medium text-zinc-500 mb-1">Retards répétés</p>
               {(alerts.data?.repeatedLateness ?? []).slice(0, 5).map((s) => (
-                <p key={s.studentId} className="text-sm text-zinc-700">
-                  {s.firstName} {s.lastName} — {s.lateCount} retards
-                </p>
+                <div key={s.studentId} className="flex items-center justify-between gap-2 text-sm text-zinc-700">
+                  <span>
+                    {s.firstName} {s.lastName} — {s.lateCount} retards
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateLatenessLetter(s)}
+                    title="Générer un brouillon de courrier de convocation (PDF, à relire avant envoi)"
+                    className="flex-shrink-0 rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  >
+                    <FileText size={13} />
+                  </button>
+                </div>
               ))}
               {alerts.data?.repeatedLateness.length === 0 && <p className="text-sm text-zinc-400">Aucun.</p>}
             </div>
             <div>
               <p className="text-xs font-medium text-zinc-500 mb-1">Absences consécutives</p>
               {(alerts.data?.consecutiveAbsences ?? []).slice(0, 5).map((s) => (
-                <p key={s.studentId} className="text-sm text-zinc-700">
-                  {s.studentName} ({s.schoolClassName}) — {s.consecutiveAbsences} jours d&apos;affilée
-                </p>
+                <div key={s.studentId} className="flex items-center justify-between gap-2 text-sm text-zinc-700">
+                  <span>
+                    {s.studentName} ({s.schoolClassName}) — {s.consecutiveAbsences} jours d&apos;affilée
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAbsenceLetter(s)}
+                    title="Générer un brouillon de courrier de convocation (PDF, à relire avant envoi)"
+                    className="flex-shrink-0 rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  >
+                    <FileText size={13} />
+                  </button>
+                </div>
               ))}
               {alerts.data?.consecutiveAbsences.length === 0 && <p className="text-sm text-zinc-400">Aucune.</p>}
             </div>
