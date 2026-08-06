@@ -7,6 +7,7 @@ import { TableRowsSkeleton } from '@/components/ui/skeleton';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { usePresenceList } from '@/lib/hooks/useAttendance';
+import { AddPresencePanel } from './_components/add-presence-panel';
 
 function todayKey(): string {
   const now = new Date();
@@ -27,6 +28,14 @@ export default function PresencesPage() {
   });
   const rows = presences.data ?? [];
   const lateCount = rows.filter((r) => r.isLate).length;
+  const selectedClass = (classes.data ?? []).find((c) => c.id === classFilter);
+  // Sans recherche : sert à savoir qui, dans la classe sélectionnée, n'a
+  // aucun pointage à cette date (voir AddPresencePanel) — indépendant de la
+  // recherche texte ci-dessus, qui filtre seulement le tableau affiché.
+  const classPresences = usePresenceList(
+    { date, schoolClassId: classFilter },
+    { enabled: !!classFilter },
+  );
 
   return (
     <div className="space-y-6">
@@ -69,6 +78,17 @@ export default function PresencesPage() {
           </span>
         </div>
       </div>
+
+      {selectedClass ? (
+        <AddPresencePanel
+          date={date}
+          schoolClassId={selectedClass.id}
+          className={selectedClass.name}
+          existingRecords={classPresences.data ?? []}
+        />
+      ) : (
+        <p className="text-sm text-zinc-400">Sélectionne une classe pour ajouter des présences.</p>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
